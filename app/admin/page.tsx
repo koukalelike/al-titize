@@ -60,10 +60,21 @@ export default function AdminPage() {
         pagesResult,
         usersResult,
       ] = await Promise.all([
-        supabase.from("manga").select("id", { count: "exact", head: true }),
-        supabase.from("chapters").select("id", { count: "exact", head: true }),
-        supabase.from("pages").select("id", { count: "exact", head: true }),
-        supabase.from("profiles").select("id, role"),
+        supabase
+          .from("manga")
+          .select("id", { count: "exact", head: true }),
+
+        supabase
+          .from("chapters")
+          .select("id", { count: "exact", head: true }),
+
+        supabase
+          .from("pages")
+          .select("id", { count: "exact", head: true }),
+
+        supabase
+          .from("profiles")
+          .select("id, role"),
       ]);
 
       const profiles = usersResult.data ?? [];
@@ -73,8 +84,12 @@ export default function AdminPage() {
         chapters: chaptersResult.count ?? 0,
         pages: pagesResult.count ?? 0,
         users: profiles.length,
-        premium: profiles.filter((p) => p.role === "premium").length,
-        admins: profiles.filter((p) => p.role === "admin").length,
+        premium: profiles.filter(
+          (p) => p.role === "premium"
+        ).length,
+        admins: profiles.filter(
+          (p) => p.role === "admin"
+        ).length,
       });
 
       setLoading(false);
@@ -170,10 +185,10 @@ export default function AdminPage() {
       dir="rtl"
       className="min-h-screen overflow-hidden bg-[#f7f8fa] text-gray-900"
     >
-      {/* Background animation */}
       <div className="pointer-events-none fixed inset-0 overflow-hidden">
         <div className="absolute -right-40 -top-40 h-96 w-96 animate-pulse rounded-full bg-gray-200/40 blur-3xl" />
-        <div className="absolute -bottom-40 -left-40 h-96 w-96 animate-pulse rounded-full bg-gray-200/30 blur-3xl [animation-delay:1s]" />
+
+        <div className="absolute -bottom-40 -left-40 h-96 w-96 animate-pulse rounded-full bg-gray-200/30 [animation-delay:1s]" />
       </div>
 
       {/* HEADER */}
@@ -200,6 +215,7 @@ export default function AdminPage() {
             className="group flex items-center gap-2 rounded-xl border border-gray-200 bg-white px-4 py-2.5 text-sm font-semibold text-gray-600 transition duration-300 hover:-translate-y-0.5 hover:border-black hover:text-black hover:shadow-md"
           >
             <span>الموقع</span>
+
             <span className="transition-transform duration-300 group-hover:-translate-x-1">
               ←
             </span>
@@ -226,7 +242,7 @@ export default function AdminPage() {
               </h2>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-gray-500 sm:text-base">
-                مرحبًا بك مجددًا،{" "}
+                مرحبًا بك مجددًا{" "}
                 <span className="font-bold text-gray-900">
                   {email}
                 </span>
@@ -368,7 +384,7 @@ export default function AdminPage() {
           </div>
         </div>
 
-        {/* USERS OVERVIEW */}
+        {/* USERS + MANAGEMENT */}
         <div className="mt-10 grid gap-5 lg:grid-cols-3">
           <div className="rounded-3xl border border-gray-200 bg-white p-7 shadow-sm">
             <p className="text-xs font-black tracking-widest text-gray-400">
@@ -438,21 +454,77 @@ export default function AdminPage() {
 
             <div className="mt-7 h-px bg-gray-100" />
 
-            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              {[
-                ["المانجا", "/admin/manga"],
-                ["الفصول", "/admin/chapters"],
-                ["الصفحات", "/admin/pages"],
-                ["المستخدمون", "/admin/users"],
-              ].map(([name, href]) => (
-                <a
-                  key={name}
-                  href={href}
-                  className="rounded-xl bg-gray-50 px-4 py-3 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:bg-black hover:text-white"
-                >
-                  {name}
-                </a>
-              ))}
+            <div className="mt-6 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+              <a
+                href="/admin/manga"
+                className="rounded-xl bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:bg-black hover:text-white"
+              >
+                📚
+                <span className="mt-2 block">
+                  المانجا
+                </span>
+              </a>
+
+              <a
+                href="/admin/chapters"
+                className="rounded-xl bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:bg-black hover:text-white"
+              >
+                📖
+                <span className="mt-2 block">
+                  الفصول
+                </span>
+              </a>
+
+              <a
+                href="/admin/pages"
+                className="rounded-xl bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:bg-black hover:text-white"
+              >
+                🖼️
+                <span className="mt-2 block">
+                  الصفحات
+                </span>
+              </a>
+
+              <a
+                href="/admin/users"
+                className="rounded-xl bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:bg-black hover:text-white"
+              >
+                👥
+                <span className="mt-2 block">
+                  المستخدمون
+                </span>
+              </a>
+
+              <a
+                href="/admin/notifications"
+                className="group rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:border-black hover:bg-black hover:text-white"
+              >
+                🔔
+                <span className="mt-2 block">
+                  الإشعارات
+                </span>
+              </a>
+
+              <a
+                href="/admin/support"
+                className="group rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:border-black hover:bg-black hover:text-white"
+              >
+                💬
+                <span className="mt-2 block">
+                  خدمة العملاء
+                </span>
+              </a>
+
+              {/* VIDEO */}
+              <a
+                href="/admin/video"
+                className="group rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:border-black hover:bg-black hover:text-white"
+              >
+                🎬
+                <span className="mt-2 block">
+                  فيديو الموقع
+                </span>
+              </a>
             </div>
           </div>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 export default function HomePage() {
@@ -38,9 +39,7 @@ export default function HomePage() {
       .single();
 
     if (profileError || !profile) {
-      setMessage(
-        "تم تسجيل الدخول، لكن تعذر تحديد نوع الحساب."
-      );
+      setMessage("تم تسجيل الدخول، لكن تعذر تحديد نوع الحساب.");
       setLoading(false);
       return;
     }
@@ -154,7 +153,7 @@ export default function HomePage() {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      placeholder="+++++++++"
+                      placeholder="••••••••"
                       className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 text-gray-900 outline-none transition placeholder:text-gray-400 focus:border-black focus:bg-white focus:ring-2 focus:ring-black/5"
                     />
                   </div>
@@ -176,7 +175,21 @@ export default function HomePage() {
                   </div>
                 )}
 
-                <div className="mt-8 border-t border-gray-100 pt-6 text-center">
+                {/* إنشاء حساب */}
+                <div className="mt-7 border-t border-gray-100 pt-6 text-center">
+                  <p className="text-sm text-gray-500">
+                    ليس لديك حساب؟
+                  </p>
+
+                  <Link
+                    href="/signup"
+                    className="mt-2 inline-block font-bold text-black underline decoration-gray-300 underline-offset-4 transition hover:decoration-black"
+                  >
+                    أنشئ حسابك الآن
+                  </Link>
+                </div>
+
+                <div className="mt-6 text-center">
                   <p className="text-xs font-semibold tracking-widest text-gray-900">
                     AL TITIZE
                   </p>
