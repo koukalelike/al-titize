@@ -381,6 +381,26 @@ export default function AdminPage() {
                 ↑
               </span>
             </a>
+
+            {/* MANGADEX IMPORT */}
+            <a
+              href="/admin/import"
+              className="group flex items-center justify-between rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-black hover:shadow-xl"
+            >
+              <div>
+                <p className="text-lg font-black">
+                  استيراد من MangaDex
+                </p>
+
+                <p className="mt-1 text-xs text-gray-500">
+                  استيراد المانجا والفصول والصفحات
+                </p>
+              </div>
+
+              <span className="text-2xl transition duration-300 group-hover:scale-125">
+                📥
+              </span>
+            </a>
           </div>
         </div>
 
@@ -523,6 +543,17 @@ export default function AdminPage() {
                 🎬
                 <span className="mt-2 block">
                   فيديو الموقع
+                </span>
+              </a>
+
+              {/* MANGADEX IMPORT */}
+              <a
+                href="/admin/import"
+                className="group rounded-xl border border-gray-200 bg-gray-50 px-4 py-4 text-center text-xs font-bold text-gray-600 transition duration-300 hover:-translate-y-1 hover:border-black hover:bg-black hover:text-white"
+              >
+                📥
+                <span className="mt-2 block">
+                  استيراد MangaDex
                 </span>
               </a>
             </div>

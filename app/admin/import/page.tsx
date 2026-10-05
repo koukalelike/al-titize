@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   getMangaInfo,
   getMangaChapters,
+  getMangaPreferredLanguage,
 } from "@/lib/mangadex";
 import { importChaptersBatchAction } from "./actions";
 
@@ -36,7 +37,7 @@ export default function MangaDexImportPage() {
     []
   );
 
-  const [language, setLanguage] = useState("ar");
+  const [language, setLanguage] = useState("");
 
   const [importMode, setImportMode] =
     useState<ImportMode>("number");
@@ -89,6 +90,8 @@ export default function MangaDexImportPage() {
     setManga(null);
     setChapters([]);
 
+    setLanguage("");
+
     setTotalChapters(0);
     setLoadedChapters(0);
     setTargetChapters(0);
@@ -113,9 +116,38 @@ export default function MangaDexImportPage() {
     try {
       setLoading(true);
 
+      /*
+       * 1. جلب معلومات المانجا
+       * الغلاف + العنوان + الوصف...
+       */
       const result = await getMangaInfo(input);
 
       setManga(result);
+
+      /*
+       * 2. اختيار لغة الفصول تلقائيًا
+       *
+       * العربية أولاً.
+       * إذا لم توجد العربية:
+       * يتم اختيار لغة أخرى متوفرة.
+       */
+      const preferred =
+        await getMangaPreferredLanguage(
+          result.id
+        );
+
+      if (!preferred.language) {
+        setError(
+          "تم العثور على المانجا، لكن لم يتم العثور على أي فصول مترجمة."
+        );
+
+        return;
+      }
+
+      setLanguage(
+        preferred.language
+      );
+
     } catch (err) {
       setError(
         err instanceof Error
@@ -157,6 +189,13 @@ export default function MangaDexImportPage() {
       return;
     }
 
+    if (!language) {
+      setChapterError(
+        "لم يتم تحديد لغة الفصول تلقائيًا."
+      );
+      return;
+    }
+
     setChapterError("");
     setImportSuccess("");
 
@@ -176,7 +215,7 @@ export default function MangaDexImportPage() {
 
       if (realTotal <= 0) {
         setChapterError(
-          "لم يتم العثور على فصول لهذه المانجا بهذه اللغة."
+          "لم يتم العثور على فصول بهذه اللغة."
         );
 
         setShowChapterSettings(false);
@@ -185,6 +224,7 @@ export default function MangaDexImportPage() {
 
       setTotalChapters(realTotal);
       setShowChapterSettings(true);
+
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -224,13 +264,6 @@ export default function MangaDexImportPage() {
           batchChapters
         );
 
-      if (!result.success && result.failed > 0) {
-        setFailedCount(
-          (previous) =>
-            previous + result.failed
-        );
-      }
-
       setImportedCount(
         (previous) =>
           previous + result.imported
@@ -252,7 +285,9 @@ export default function MangaDexImportPage() {
       );
 
       if (result.error) {
-        setChapterError(result.error);
+        setChapterError(
+          result.error
+        );
       }
 
       if (
@@ -263,6 +298,7 @@ export default function MangaDexImportPage() {
           `تمت معالجة الدفعة: ${result.imported} فصل مستورد، ${result.skipped} فصل موجود مسبقًا، ${result.failed} فصل فشل. إجمالي الصفحات الجديدة: ${result.totalPages}`
         );
       }
+
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -278,6 +314,13 @@ export default function MangaDexImportPage() {
     if (!manga?.id) {
       setChapterError(
         "ابحث عن المانجا أولاً"
+      );
+      return;
+    }
+
+    if (!language) {
+      setChapterError(
+        "لم يتم تحديد لغة الفصول."
       );
       return;
     }
@@ -316,7 +359,9 @@ export default function MangaDexImportPage() {
       return;
     }
 
-    setTargetChapters(finalTarget);
+    setTargetChapters(
+      finalTarget
+    );
 
     try {
       setLoadingChapters(true);
@@ -344,22 +389,31 @@ export default function MangaDexImportPage() {
         return;
       }
 
-      setChapters(result.chapters);
+      setChapters(
+        result.chapters
+      );
 
       const loaded =
         result.chapters.length;
 
-      setLoadedChapters(loaded);
+      setLoadedChapters(
+        loaded
+      );
+
       setCurrentBatch(1);
 
       setLoadingChapters(false);
 
-      // استيراد الدفعة تلقائيًا
+      /*
+       * استيراد الدفعة تلقائيًا
+       */
       await importBatch(
         result.chapters
       );
 
-      if (loaded >= finalTarget) {
+      if (
+        loaded >= finalTarget
+      ) {
         setImportSuccess(
           "🎉 اكتمل جلب واستيراد جميع الفصول المطلوبة."
         );
@@ -367,7 +421,10 @@ export default function MangaDexImportPage() {
         return;
       }
 
-      setWaitingForNextBatch(true);
+      setWaitingForNextBatch(
+        true
+      );
+
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -385,23 +442,31 @@ export default function MangaDexImportPage() {
     }
 
     if (
-      loadedChapters >= targetChapters
+      loadedChapters >=
+      targetChapters
     ) {
-      setWaitingForNextBatch(false);
+      setWaitingForNextBatch(
+        false
+      );
       return;
     }
 
     setChapterError("");
     setImportSuccess("");
-    setWaitingForNextBatch(false);
+    setWaitingForNextBatch(
+      false
+    );
 
     try {
       await waitTenSeconds();
 
-      setLoadingChapters(true);
+      setLoadingChapters(
+        true
+      );
 
       const remaining =
-        targetChapters - loadedChapters;
+        targetChapters -
+        loadedChapters;
 
       const batchSize = Math.min(
         100,
@@ -426,29 +491,42 @@ export default function MangaDexImportPage() {
         return;
       }
 
-      setChapters((previous) => [
-        ...previous,
-        ...result.chapters,
-      ]);
+      setChapters(
+        (previous) => [
+          ...previous,
+          ...result.chapters,
+        ]
+      );
 
       const newLoaded =
         loadedChapters +
         result.chapters.length;
 
-      setLoadedChapters(newLoaded);
-
-      setCurrentBatch(
-        Math.ceil(newLoaded / 100)
+      setLoadedChapters(
+        newLoaded
       );
 
-      setLoadingChapters(false);
+      setCurrentBatch(
+        Math.ceil(
+          newLoaded / 100
+        )
+      );
 
-      // استيراد الدفعة تلقائيًا
+      setLoadingChapters(
+        false
+      );
+
+      /*
+       * استيراد الدفعة تلقائيًا
+       */
       await importBatch(
         result.chapters
       );
 
-      if (newLoaded >= targetChapters) {
+      if (
+        newLoaded >=
+        targetChapters
+      ) {
         setImportSuccess(
           "🎉 اكتمل جلب واستيراد جميع الفصول المطلوبة."
         );
@@ -456,7 +534,10 @@ export default function MangaDexImportPage() {
         return;
       }
 
-      setWaitingForNextBatch(true);
+      setWaitingForNextBatch(
+        true
+      );
+
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -464,14 +545,19 @@ export default function MangaDexImportPage() {
           : "حدث خطأ أثناء جلب الدفعة التالية"
       );
     } finally {
-      setLoadingChapters(false);
+      setLoadingChapters(
+        false
+      );
+
       setWaiting(false);
       setCountdown(0);
     }
   }
 
   function stopImport() {
-    setWaitingForNextBatch(false);
+    setWaitingForNextBatch(
+      false
+    );
 
     setImportSuccess(
       `⏸️ تم إيقاف الاستيراد بعد معالجة ${loadedChapters} من ${targetChapters} فصل.`
@@ -526,7 +612,11 @@ export default function MangaDexImportPage() {
       ? "الفرنسية"
       : language === "es"
       ? "الإسبانية"
-      : "اليابانية";
+      : language === "ja"
+      ? "اليابانية"
+      : language
+      ? language.toUpperCase()
+      : "جاري التحديد...";
 
   return (
     <main
@@ -556,7 +646,9 @@ export default function MangaDexImportPage() {
             type="text"
             value={input}
             onChange={(e) =>
-              setInput(e.target.value)
+              setInput(
+                e.target.value
+              )
             }
             placeholder="https://mangadex.org/title/..."
             dir="ltr"
@@ -569,7 +661,7 @@ export default function MangaDexImportPage() {
             className="mt-4 w-full rounded-xl bg-black px-4 py-3 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
-              ? "جاري البحث..."
+              ? "جاري البحث وتحديد اللغة..."
               : "بحث عن المانجا"}
           </button>
 
@@ -594,7 +686,9 @@ export default function MangaDexImportPage() {
                   {coverUrl ? (
                     <img
                       src={coverUrl}
-                      alt={String(title)}
+                      alt={String(
+                        title
+                      )}
                       className="w-full rounded-xl object-cover"
                     />
                   ) : (
@@ -615,13 +709,28 @@ export default function MangaDexImportPage() {
                   </h2>
 
                   <p className="mt-4 whitespace-pre-line text-sm leading-7 text-gray-600">
-                    {String(description)}
+                    {String(
+                      description
+                    )}
                   </p>
 
                   <div className="mt-5 inline-flex rounded-lg bg-gray-100 px-3 py-2 text-xs font-bold text-gray-600">
-                    لغة الفصول:{" "}
+                    لغة الفصول المختارة تلقائيًا:{" "}
                     {languageName}
                   </div>
+
+                  {language === "ar" && (
+                    <p className="mt-2 text-xs font-bold text-green-600">
+                      ✓ تم العثور على فصول عربية
+                    </p>
+                  )}
+
+                  {language &&
+                    language !== "ar" && (
+                      <p className="mt-2 text-xs font-bold text-orange-600">
+                        لم توجد فصول عربية، تم اختيار اللغة المتوفرة تلقائيًا.
+                      </p>
+                    )}
 
                 </div>
 
@@ -632,10 +741,13 @@ export default function MangaDexImportPage() {
               <div className="border-t border-gray-200 bg-gray-50 p-5">
 
                 <button
-                  onClick={handleGetChapters}
+                  onClick={
+                    handleGetChapters
+                  }
                   disabled={
                     loadingChapters ||
-                    importingBatch
+                    importingBatch ||
+                    !language
                   }
                   className="w-full rounded-xl bg-black px-4 py-3 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
                 >
@@ -694,7 +806,7 @@ export default function MangaDexImportPage() {
                   إعدادات الفصول
                 </h2>
 
-                <div className="mt-5 grid gap-4 sm:grid-cols-2">
+                <div className="mt-5">
 
                   <div>
 
@@ -702,71 +814,45 @@ export default function MangaDexImportPage() {
                       لغة الفصول
                     </label>
 
-                    <select
-                      value={language}
-                      disabled={
-                        loadingChapters ||
-                        importingBatch
-                      }
-                      onChange={(e) =>
-                        setLanguage(
-                          e.target.value
-                        )
-                      }
-                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black disabled:opacity-50"
-                    >
-                      <option value="ar">
-                        العربية
-                      </option>
+                    <div className="rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700">
+                      {languageName}
+                    </div>
 
-                      <option value="en">
-                        الإنجليزية
-                      </option>
-
-                      <option value="fr">
-                        الفرنسية
-                      </option>
-
-                      <option value="es">
-                        الإسبانية
-                      </option>
-
-                      <option value="ja">
-                        اليابانية
-                      </option>
-                    </select>
+                    <p className="mt-2 text-xs text-gray-500">
+                      تم اختيار اللغة تلقائيًا: العربية أولًا، ثم لغة أخرى عند عدم توفر العربية.
+                    </p>
 
                   </div>
 
-                  <div>
+                </div>
 
-                    <label className="mb-2 block text-sm font-bold text-gray-700">
-                      عدد الفصول
-                    </label>
+                <div className="mt-5">
 
-                    <select
-                      value={importMode}
-                      disabled={
-                        loadingChapters ||
-                        importingBatch
-                      }
-                      onChange={(e) =>
-                        setImportMode(
-                          e.target.value as ImportMode
-                        )
-                      }
-                      className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black disabled:opacity-50"
-                    >
-                      <option value="number">
-                        عدد محدد
-                      </option>
+                  <label className="mb-2 block text-sm font-bold text-gray-700">
+                    عدد الفصول
+                  </label>
 
-                      <option value="all">
-                        كل الفصول
-                      </option>
-                    </select>
+                  <select
+                    value={importMode}
+                    disabled={
+                      loadingChapters ||
+                      importingBatch
+                    }
+                    onChange={(e) =>
+                      setImportMode(
+                        e.target.value as ImportMode
+                      )
+                    }
+                    className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black disabled:opacity-50"
+                  >
+                    <option value="number">
+                      عدد محدد
+                    </option>
 
-                  </div>
+                    <option value="all">
+                      كل الفصول
+                    </option>
+                  </select>
 
                 </div>
 
@@ -780,8 +866,12 @@ export default function MangaDexImportPage() {
                     <input
                       type="number"
                       min="1"
-                      max={totalChapters}
-                      value={chapterLimit}
+                      max={
+                        totalChapters
+                      }
+                      value={
+                        chapterLimit
+                      }
                       disabled={
                         loadingChapters ||
                         importingBatch
@@ -803,13 +893,21 @@ export default function MangaDexImportPage() {
                 )}
 
                 <button
-                  onClick={startImport}
+                  onClick={
+                    startImport
+                  }
                   disabled={
                     loadingChapters ||
                     importingBatch ||
-                    (importMode === "number" &&
-                      (Number(chapterLimit) < 1 ||
-                        Number(chapterLimit) >
+                    !language ||
+                    (importMode ===
+                      "number" &&
+                      (Number(
+                        chapterLimit
+                      ) < 1 ||
+                        Number(
+                          chapterLimit
+                        ) >
                           totalChapters))
                   }
                   className="mt-5 w-full rounded-xl bg-black px-4 py-3 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
@@ -908,6 +1006,7 @@ export default function MangaDexImportPage() {
                     <p className="text-xs text-gray-500">
                       مستورد
                     </p>
+
                     <p className="mt-1 text-xl font-black text-green-600">
                       {importedCount}
                     </p>
@@ -917,6 +1016,7 @@ export default function MangaDexImportPage() {
                     <p className="text-xs text-gray-500">
                       موجود مسبقًا
                     </p>
+
                     <p className="mt-1 text-xl font-black text-gray-600">
                       {skippedCount}
                     </p>
@@ -926,6 +1026,7 @@ export default function MangaDexImportPage() {
                     <p className="text-xs text-gray-500">
                       فشل
                     </p>
+
                     <p className="mt-1 text-xl font-black text-red-600">
                       {failedCount}
                     </p>
@@ -935,6 +1036,7 @@ export default function MangaDexImportPage() {
                     <p className="text-xs text-gray-500">
                       الصفحات الجديدة
                     </p>
+
                     <p className="mt-1 text-xl font-black text-blue-600">
                       {totalImportedPages}
                     </p>
@@ -990,7 +1092,9 @@ export default function MangaDexImportPage() {
 
                         <button
                           type="button"
-                          onClick={stopImport}
+                          onClick={
+                            stopImport
+                          }
                           disabled={
                             waiting ||
                             loadingChapters ||
@@ -1029,9 +1133,14 @@ export default function MangaDexImportPage() {
                 <div className="mt-5 space-y-3">
 
                   {chapters.map(
-                    (chapter, index) => (
+                    (
+                      chapter,
+                      index
+                    ) => (
                       <div
-                        key={chapter.id}
+                        key={
+                          chapter.id
+                        }
                         className="rounded-xl border border-gray-200 bg-gray-50 p-4"
                       >
 
@@ -1044,12 +1153,15 @@ export default function MangaDexImportPage() {
                               <p className="font-bold text-black">
                                 الفصل{" "}
                                 {chapter.chapter ||
-                                  index + 1}
+                                  index +
+                                    1}
                               </p>
 
                               {chapter.title && (
                                 <p className="mt-1 text-sm text-gray-600">
-                                  {chapter.title}
+                                  {
+                                    chapter.title
+                                  }
                                 </p>
                               )}
 
@@ -1058,7 +1170,10 @@ export default function MangaDexImportPage() {
                             <div className="text-xs text-gray-500">
                               {chapter.language.toUpperCase()}
                               {" · "}
-                              {chapter.pages} صفحة
+                              {
+                                chapter.pages
+                              }{" "}
+                              صفحة
                             </div>
 
                           </div>
