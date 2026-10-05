@@ -9,6 +9,7 @@ type Manga = {
   description: string | null;
   cover_url: string | null;
   status: string;
+  mangadex_id: string | null;
 };
 
 export default function MangaPage() {
@@ -17,15 +18,16 @@ export default function MangaPage() {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [status, setStatus] = useState("ongoing");
+  const [mangadexId, setMangadexId] = useState("");
 
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [coverPreview, setCoverPreview] = useState<string | null>(null);
 
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [editingCoverFile, setEditingCoverFile] = useState<File | null>(null);
-  const [editingCoverPreview, setEditingCoverPreview] = useState<string | null>(
-    null
-  );
+  const [editingCoverFile, setEditingCoverFile] =
+    useState<File | null>(null);
+  const [editingCoverPreview, setEditingCoverPreview] =
+    useState<string | null>(null);
 
   const [loading, setLoading] = useState(true);
   const [authorized, setAuthorized] = useState(false);
@@ -95,7 +97,9 @@ export default function MangaPage() {
     initialize();
   }, []);
 
-  function handleCoverChange(e: React.ChangeEvent<HTMLInputElement>) {
+  function handleCoverChange(
+    e: React.ChangeEvent<HTMLInputElement>
+  ) {
     const file = e.target.files?.[0];
 
     if (!file) {
@@ -155,6 +159,7 @@ export default function MangaPage() {
     setTitle(item.title);
     setDescription(item.description ?? "");
     setStatus(item.status);
+    setMangadexId(item.mangadex_id ?? "");
     setEditingCoverFile(null);
     setEditingCoverPreview(item.cover_url);
     setMessage("");
@@ -177,6 +182,7 @@ export default function MangaPage() {
     setTitle("");
     setDescription("");
     setStatus("ongoing");
+    setMangadexId("");
     setMessage("");
   }
 
@@ -233,19 +239,28 @@ export default function MangaPage() {
       return;
     }
 
+    if (!mangadexId.trim()) {
+      setMessage("أدخل MangaDex ID للمانجا.");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
     const supabase = createClient();
 
     try {
-      const coverUrl = await uploadCover(supabase, coverFile);
+      const coverUrl = await uploadCover(
+        supabase,
+        coverFile
+      );
 
       const { error } = await supabase.from("manga").insert({
         title: title.trim(),
         description: description.trim() || null,
         cover_url: coverUrl,
         status,
+        mangadex_id: mangadexId.trim(),
       });
 
       if (error) {
@@ -258,11 +273,15 @@ export default function MangaPage() {
       setTitle("");
       setDescription("");
       setStatus("ongoing");
+      setMangadexId("");
+
       removeCover();
 
       await loadManga();
 
-      setMessage("تمت إضافة المانجا والغلاف بنجاح! 🎉");
+      setMessage(
+        "تمت إضافة المانجا والغلاف وMangaDex ID بنجاح! 🎉"
+      );
     } catch (error) {
       console.error(error);
 
@@ -288,13 +307,19 @@ export default function MangaPage() {
       return;
     }
 
+    if (!mangadexId.trim()) {
+      setMessage("أدخل MangaDex ID للمانجا.");
+      return;
+    }
+
     setSaving(true);
     setMessage("");
 
     const supabase = createClient();
 
     try {
-      let coverUrl: string | null | undefined = undefined;
+      let coverUrl: string | null | undefined =
+        undefined;
 
       if (editingCoverFile) {
         coverUrl = await uploadCover(
@@ -307,11 +332,13 @@ export default function MangaPage() {
         title: string;
         description: string | null;
         status: string;
+        mangadex_id: string;
         cover_url?: string;
       } = {
         title: title.trim(),
         description: description.trim() || null,
         status,
+        mangadex_id: mangadexId.trim(),
       };
 
       if (coverUrl) {
@@ -325,7 +352,9 @@ export default function MangaPage() {
 
       if (error) {
         console.error(error);
-        setMessage(`حدث خطأ أثناء التعديل: ${error.message}`);
+        setMessage(
+          `حدث خطأ أثناء التعديل: ${error.message}`
+        );
         setSaving(false);
         return;
       }
@@ -334,7 +363,9 @@ export default function MangaPage() {
 
       cancelEditing();
 
-      setMessage("تم تعديل المانجا بنجاح! ✨");
+      setMessage(
+        "تم تعديل المانجا بنجاح! ✨"
+      );
     } catch (error) {
       console.error(error);
 
@@ -442,7 +473,6 @@ export default function MangaPage() {
       </header>
 
       <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 lg:px-8">
-        {/* PAGE HEADER */}
         <div className="mb-8">
           <div className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-bold text-gray-500 shadow-sm">
             <span className="h-2 w-2 rounded-full bg-green-500" />
@@ -459,7 +489,6 @@ export default function MangaPage() {
           </p>
         </div>
 
-        {/* ADD / EDIT MANGA */}
         <div className="overflow-hidden rounded-[2rem] border border-gray-200 bg-white shadow-sm">
           <div className="border-b border-gray-100 bg-gradient-to-l from-gray-50 to-white px-5 py-6 sm:px-8">
             <div className="flex items-center justify-between gap-4">
@@ -477,7 +506,9 @@ export default function MangaPage() {
 
                   <p className="mt-1 text-xs text-gray-400">
                     {editingId
-                      ? `تعديل بيانات ${editingManga?.title ?? "المانجا"}`
+                      ? `تعديل بيانات ${
+                          editingManga?.title ?? "المانجا"
+                        }`
                       : "أضف المعلومات والغلاف ثم انشر العمل."}
                   </p>
                 </div>
@@ -496,10 +527,11 @@ export default function MangaPage() {
           </div>
 
           <form
-            onSubmit={editingId ? updateManga : addManga}
+            onSubmit={
+              editingId ? updateManga : addManga
+            }
             className="grid gap-7 p-5 sm:p-8 lg:grid-cols-[1fr_360px]"
           >
-            {/* INFO */}
             <div className="space-y-5">
               <div>
                 <label className="mb-2 block text-sm font-bold text-gray-700">
@@ -515,6 +547,26 @@ export default function MangaPage() {
                   placeholder="مثال: THE SILENCE"
                   className="min-h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 outline-none transition focus:border-black focus:bg-white focus:ring-4 focus:ring-gray-100"
                 />
+              </div>
+
+              <div>
+                <label className="mb-2 block text-sm font-bold text-gray-700">
+                  MangaDex ID
+                </label>
+
+                <input
+                  type="text"
+                  value={mangadexId}
+                  onChange={(e) =>
+                    setMangadexId(e.target.value)
+                  }
+                  placeholder="مثال: a1c7c817-4e59-43b7-9365-09675a149a6f"
+                  className="min-h-12 w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 font-mono text-sm outline-none transition focus:border-black focus:bg-white focus:ring-4 focus:ring-gray-100"
+                />
+
+                <p className="mt-2 text-xs leading-5 text-gray-400">
+                  ضع UUID الخاص بالمانجا من رابط MangaDex.
+                </p>
               </div>
 
               <div>
@@ -560,7 +612,6 @@ export default function MangaPage() {
               </div>
             </div>
 
-            {/* COVER */}
             <div>
               <label className="mb-2 block text-sm font-bold text-gray-700">
                 غلاف المانجا
@@ -693,7 +744,6 @@ export default function MangaPage() {
               )}
             </div>
 
-            {/* SUBMIT */}
             <div className="lg:col-span-2">
               {message && (
                 <div className="mb-5 rounded-2xl border border-gray-200 bg-gray-50 p-4 text-center text-sm font-medium leading-6 text-gray-700">
@@ -731,7 +781,6 @@ export default function MangaPage() {
           </form>
         </div>
 
-        {/* MANGA LIST */}
         <div className="mt-12">
           <div className="mb-6 flex items-end justify-between gap-4">
             <div>
@@ -751,9 +800,7 @@ export default function MangaPage() {
 
           {manga.length === 0 ? (
             <div className="rounded-[2rem] border border-dashed border-gray-300 bg-white px-6 py-16 text-center">
-              <div className="text-5xl">
-                📚
-              </div>
+              <div className="text-5xl">📚</div>
 
               <p className="mt-5 text-lg font-black">
                 لا توجد مانجا حاليًا
@@ -810,6 +857,18 @@ export default function MangaPage() {
                       {item.description ||
                         "لا يوجد وصف."}
                     </p>
+
+                    {item.mangadex_id && (
+                      <div className="mt-3 rounded-lg bg-gray-50 px-3 py-2">
+                        <p className="text-[9px] font-bold text-gray-400">
+                          MANGADEX ID
+                        </p>
+
+                        <p className="mt-1 truncate font-mono text-[10px] text-gray-600">
+                          {item.mangadex_id}
+                        </p>
+                      </div>
+                    )}
 
                     <div className="mt-5 grid grid-cols-2 gap-2">
                       <button
