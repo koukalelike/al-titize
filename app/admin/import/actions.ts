@@ -343,6 +343,12 @@ async function checkAdmin() {
 
 /*
  * إنشاء المانغا إذا لم تكن موجودة.
+ *
+ * تم تعديل هذا الجزء فقط:
+ *
+ * - جلب الغلاف الرسمي من MangaDex.
+ * - تحديث cover_url إذا كانت المانغا موجودة
+ *   وكان الغلاف مختلفًا أو فارغًا.
  */
 async function ensureMangaExists(
   supabase: any,
@@ -373,11 +379,74 @@ async function ensureMangaExists(
     );
   }
 
+  /*
+   * جلب معلومات MangaDex للحصول على
+   * الغلاف الرسمي.
+   *
+   * getMangaInfo() يعيد coverUrl
+   * بعد جلب cover_art.
+   */
+  const mangaInfo =
+    await getMangaInfo(
+      mangaDexId
+    );
+
+  const officialCoverUrl =
+    mangaInfo?.coverUrl ||
+    null;
+
   if (existingManga) {
     console.log(
       "✅ المانغا موجودة بالفعل:",
       existingManga.title
     );
+
+    /*
+     * إذا كان الغلاف الموجود مختلفًا
+     * عن الغلاف الرسمي في MangaDex،
+     * نقوم بتحديثه.
+     */
+    if (
+      officialCoverUrl &&
+      existingManga.cover_url !==
+        officialCoverUrl
+    ) {
+      console.log(
+        "🖼️ تحديث غلاف المانغا إلى الغلاف الرسمي من MangaDex..."
+      );
+
+      const {
+        data: updatedManga,
+        error: updateError,
+      } =
+        await supabase
+          .from("manga")
+          .update({
+            cover_url:
+              officialCoverUrl,
+          })
+          .eq(
+            "id",
+            existingManga.id
+          )
+          .select(
+            "id, title, description, cover_url, status, mangadex_id"
+          )
+          .single();
+
+      if (updateError) {
+        throw new Error(
+          `فشل تحديث غلاف المانغا: ${updateError.message}`
+        );
+      }
+
+      console.log(
+        "✅ تم تحديث الغلاف:",
+        officialCoverUrl
+      );
+
+      return updatedManga;
+    }
 
     return existingManga;
   }
@@ -385,11 +454,6 @@ async function ensureMangaExists(
   console.log(
     "📕 المانغا غير موجودة، سيتم إنشاؤها تلقائيًا..."
   );
-
-  const mangaInfo =
-    await getMangaInfo(
-      mangaDexId
-    );
 
   const attributes =
     mangaInfo?.data?.attributes ||
@@ -409,19 +473,12 @@ async function ensureMangaExists(
     )[0] ||
     "";
 
-  const coverFile =
-    mangaInfo?.data?.relationships?.find(
-      (item: any) =>
-        item.type === "cover_art"
-    )?.attributes?.fileName;
-
-  let coverUrl: string | null =
-    null;
-
-  if (coverFile) {
-    coverUrl =
-      `https://uploads.mangadex.org/covers/${mangaDexId}/${coverFile}`;
-  }
+  /*
+   * الغلاف الرسمي الذي تم جلبه
+   * من MangaDex.
+   */
+  const coverUrl =
+    officialCoverUrl;
 
   const {
     data: newManga,
@@ -433,7 +490,8 @@ async function ensureMangaExists(
         title: String(title),
         description:
           String(description),
-        cover_url: coverUrl,
+        cover_url:
+          coverUrl,
         status: "ongoing",
         mangadex_id:
           mangaDexId,
@@ -707,10 +765,6 @@ async function importOneChapter(
 
       /*
        * تشغيل صفحتين فقط في نفس الوقت.
-       *
-       * Promise.all لا يغير ترتيب
-       * currentPages، لكننا مع ذلك
-       * نفرض الترتيب النهائي لاحقًا.
        */
       const batchResults =
         await Promise.all(
@@ -909,13 +963,6 @@ async function importOneChapter(
 
     /*
      * 7. حفظ الصفحات في قاعدة البيانات.
-     *
-     * سيتم إرسالها بالترتيب:
-     *
-     * 1
-     * 2
-     * 3
-     * ...
      */
     console.log(
       "💾 حفظ الصفحات في قاعدة البيانات..."

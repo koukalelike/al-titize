@@ -14,10 +14,6 @@ type Notification = {
 export default function NotificationBell() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/admin")) {
-    return null;
-  }
-
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
@@ -37,8 +33,12 @@ export default function NotificationBell() {
   }
 
   useEffect(() => {
+    if (pathname.startsWith("/admin")) {
+      return;
+    }
+
     loadNotifications();
-  }, []);
+  }, [pathname]);
 
   function toggleNotifications() {
     setOpen((value) => !value);
@@ -46,6 +46,10 @@ export default function NotificationBell() {
     if (!open) {
       loadNotifications();
     }
+  }
+
+  if (pathname.startsWith("/admin")) {
+    return null;
   }
 
   return (

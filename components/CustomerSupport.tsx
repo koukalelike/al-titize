@@ -15,10 +15,6 @@ type SupportMessage = {
 export default function CustomerSupport() {
   const pathname = usePathname();
 
-  if (pathname.startsWith("/admin")) {
-    return null;
-  }
-
   const [open, setOpen] = useState(false);
   const [message, setMessage] = useState("");
   const [messages, setMessages] = useState<SupportMessage[]>([]);
@@ -26,35 +22,59 @@ export default function CustomerSupport() {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
 
+  const isAdmin = pathname.startsWith("/admin");
+
   async function loadMessages() {
     setLoading(true);
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
+      if (!user) {
+        setMessages([]);
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from("support_messages")
+        .select("id, message, reply, replied_at, created_at")
+        .eq("user_id", user.id)
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error(
+          "فشل تحميل رسائل خدمة العملاء:",
+          error.message
+        );
+        return;
+      }
+
+      setMessages(data ?? []);
+    } catch (error) {
+      console.error(
+        "حدث خطأ أثناء تحميل رسائل خدمة العملاء:",
+        error
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const { data } = await supabase
-      .from("support_messages")
-      .select("id, message, reply, replied_at, created_at")
-      .eq("user_id", user.id)
-      .order("created_at", { ascending: false });
-
-    setMessages(data ?? []);
-    setLoading(false);
   }
 
   useEffect(() => {
-    if (open) {
-      loadMessages();
+    if (isAdmin) {
+      return;
     }
-  }, [open]);
+
+    if (!open) {
+      return;
+    }
+
+    loadMessages();
+  }, [open, isAdmin]);
 
   async function sendMessage() {
     if (!message.trim()) {
@@ -65,37 +85,53 @@ export default function CustomerSupport() {
     setSending(true);
     setStatus("");
 
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
 
-    const {
-      data: { user },
-    } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-    if (!user) {
-      setStatus("يجب تسجيل الدخول أولاً.");
-      setSending(false);
-      return;
-    }
+      if (!user) {
+        setStatus("يجب تسجيل الدخول أولاً.");
+        return;
+      }
 
-    const { error } = await supabase
-      .from("support_messages")
-      .insert({
-        user_id: user.id,
-        message: message.trim(),
-      });
+      const { error } = await supabase
+        .from("support_messages")
+        .insert({
+          user_id: user.id,
+          message: message.trim(),
+        });
 
-    if (error) {
+      if (error) {
+        console.error(
+          "فشل إرسال رسالة خدمة العملاء:",
+          error.message
+        );
+
+        setStatus("حدث خطأ أثناء إرسال الرسالة.");
+        return;
+      }
+
+      setMessage("");
+      setStatus("تم إرسال رسالتك بنجاح ✅");
+
+      await loadMessages();
+    } catch (error) {
+      console.error(
+        "حدث خطأ أثناء إرسال الرسالة:",
+        error
+      );
+
       setStatus("حدث خطأ أثناء إرسال الرسالة.");
+    } finally {
       setSending(false);
-      return;
     }
+  }
 
-    setMessage("");
-    setStatus("تم إرسال رسالتك بنجاح ✅");
-
-    await loadMessages();
-
-    setSending(false);
+  if (isAdmin) {
+    return null;
   }
 
   return (
