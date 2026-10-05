@@ -1,4 +1,5 @@
 const MANGADEX_API = "https://api.mangadex.org";
+const MANGADEX_UPLOADS = "https://uploads.mangadex.org";
 
 export function getMangaId(input: string): string | null {
   const value = input.trim();
@@ -25,9 +26,7 @@ export async function getMangaInfo(input: string) {
   const mangaId = getMangaId(input);
 
   if (!mangaId) {
-    throw new Error(
-      "رابط MangaDex أو Manga ID غير صحيح"
-    );
+    throw new Error("رابط MangaDex أو Manga ID غير صحيح");
   }
 
   const response = await fetch(
@@ -38,35 +37,30 @@ export async function getMangaInfo(input: string) {
   );
 
   if (!response.ok) {
-    throw new Error(
-      `MangaDex API error: ${response.status}`
-    );
+    throw new Error(`MangaDex API error: ${response.status}`);
   }
 
   const result = await response.json();
-
   const mangaData = result.data;
 
   /*
    * استخراج علاقة الغلاف cover_art
    */
-  const coverRelationship =
-    mangaData?.relationships?.find(
-      (relationship: any) =>
-        relationship.type === "cover_art"
-    );
+  const coverRelationship = mangaData?.relationships?.find(
+    (relationship: any) => relationship.type === "cover_art"
+  );
 
   /*
    * استخراج اسم ملف الغلاف
    */
   const fileName =
-    coverRelationship?.attributes?.fileName;
+    coverRelationship?.attributes?.fileName ?? null;
 
   /*
-   * بناء رابط الغلاف النهائي
+   * بناء رابط الغلاف
    */
   const coverUrl = fileName
-    ? `https://uploads.mangadex.org/covers/${mangaId}/${fileName}`
+    ? `${MANGADEX_UPLOADS}/covers/${mangaId}/${fileName}`
     : null;
 
   return {
@@ -124,28 +118,36 @@ export async function getMangaChapters(
 
   return {
     total: Number(result.total ?? 0),
+
     offset: Number(
       result.offset ?? offset
     ),
+
     limit: Number(
       result.limit ?? limit
     ),
+
     chapters: (result.data || []).map(
       (chapter: any) => ({
         id: chapter.id,
+
         chapter:
           chapter.attributes?.chapter ??
           null,
+
         title:
           chapter.attributes?.title ??
           "",
+
         language:
           chapter.attributes
             ?.translatedLanguage ??
           "",
+
         pages:
           chapter.attributes?.pages ??
           0,
+
         volume:
           chapter.attributes?.volume ??
           null,
@@ -198,28 +200,36 @@ export async function getMangaChaptersAllLanguages(
 
   return {
     total: Number(result.total ?? 0),
+
     offset: Number(
       result.offset ?? offset
     ),
+
     limit: Number(
       result.limit ?? limit
     ),
+
     chapters: (result.data || []).map(
       (chapter: any) => ({
         id: chapter.id,
+
         chapter:
           chapter.attributes?.chapter ??
           null,
+
         title:
           chapter.attributes?.title ??
           "",
+
         language:
           chapter.attributes
             ?.translatedLanguage ??
           "",
+
         pages:
           chapter.attributes?.pages ??
           0,
+
         volume:
           chapter.attributes?.volume ??
           null,
@@ -288,7 +298,9 @@ export async function getMangaPreferredLanguage(
     number
   > = {};
 
-  for (const chapter of allLanguages.chapters) {
+  for (
+    const chapter of allLanguages.chapters
+  ) {
     const chapterLanguage =
       chapter.language;
 
@@ -336,8 +348,10 @@ export async function getMangaPreferredLanguage(
 
   return {
     language,
+
     total:
-      languageChapters.total || count,
+      languageChapters.total ||
+      count,
   };
 }
 
@@ -370,12 +384,15 @@ export async function getChapterInfo(
     id:
       result.data?.id ||
       chapterId,
+
     chapter:
       attributes.chapter ??
       null,
+
     title:
       attributes.title ??
       null,
+
     language:
       attributes.translatedLanguage ??
       "",
@@ -431,7 +448,9 @@ export async function getChapterPages(
     ) => ({
       page_number:
         index + 1,
+
       filename,
+
       image_url:
         `${baseUrl}/data/${hash}/${filename}`,
     })
