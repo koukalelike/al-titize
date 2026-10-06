@@ -55,28 +55,6 @@ export default function MangaDetailsPage() {
           );
         }
 
-        console.log(
-          "================================="
-        );
-        console.log(
-          "[AL TITIZE COVER DEBUG]"
-        );
-        console.log(
-          "Manga ID:",
-          mangaData?.id
-        );
-        console.log(
-          "Manga title:",
-          mangaData?.title
-        );
-        console.log(
-          "Cover URL from Supabase:",
-          mangaData?.cover_url
-        );
-        console.log(
-          "================================="
-        );
-
         const { data: chaptersData, error: chaptersError } =
           await supabase
             .from("chapters")
@@ -97,10 +75,7 @@ export default function MangaDetailsPage() {
         setManga(mangaData);
         setChapters(chaptersData ?? []);
       } catch (err) {
-        console.error(
-          "MANGA DETAILS ERROR:",
-          err
-        );
+        console.error("MANGA DETAILS ERROR:", err);
 
         setError(
           err instanceof Error
@@ -139,9 +114,7 @@ export default function MangaDetailsPage() {
         className="flex min-h-screen items-center justify-center bg-white px-5"
       >
         <div className="w-full max-w-xl text-center">
-          <div className="text-6xl">
-            ⚠️
-          </div>
+          <div className="text-6xl">⚠️</div>
 
           <h1 className="mt-6 text-3xl font-black">
             حدث خطأ
@@ -169,9 +142,7 @@ export default function MangaDetailsPage() {
         className="flex min-h-screen items-center justify-center bg-white px-5"
       >
         <div className="text-center">
-          <div className="text-6xl">
-            📚
-          </div>
+          <div className="text-6xl">📚</div>
 
           <h1 className="mt-6 text-3xl font-black">
             المانجا غير موجودة
@@ -233,7 +204,6 @@ export default function MangaDetailsPage() {
       <section className="border-b border-gray-100 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 md:py-20">
           <div className="grid items-center gap-8 md:grid-cols-[300px_1fr] md:gap-10">
-
             <div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl sm:max-w-[300px]">
               <div className="aspect-[3/4]">
                 {manga.cover_url ? (
@@ -241,46 +211,47 @@ export default function MangaDetailsPage() {
                     src={manga.cover_url}
                     alt={manga.title}
                     loading="eager"
-                    className="h-full w-full object-cover"
-                    onLoad={() => {
+                    decoding="sync"
+                    className="block h-full w-full object-cover"
+                    referrerPolicy="no-referrer"
+                    onLoad={(event) => {
+                      const image =
+                        event.currentTarget;
+
                       console.log(
                         "[AL TITIZE COVER DEBUG] COVER LOAD SUCCESS"
                       );
-
                       console.log(
                         "Manga:",
                         manga.title
                       );
-
                       console.log(
                         "Cover URL:",
                         manga.cover_url
+                      );
+                      console.log(
+                        "Current source:",
+                        image.currentSrc
                       );
                     }}
                     onError={(event) => {
+                      const image =
+                        event.currentTarget;
+
                       console.error(
                         "[AL TITIZE COVER DEBUG] COVER LOAD FAILED"
                       );
-
                       console.error(
                         "Manga:",
                         manga.title
                       );
-
                       console.error(
                         "Cover URL:",
                         manga.cover_url
                       );
-
                       console.error(
-                        "Image element:",
-                        event.currentTarget
-                      );
-
-                      console.error(
-                        "Current image src:",
-                        event.currentTarget.currentSrc ||
-                          event.currentTarget.src
+                        "Current source:",
+                        image.currentSrc
                       );
                     }}
                   />
@@ -382,9 +353,7 @@ export default function MangaDetailsPage() {
 
         {chapters.length === 0 ? (
           <div className="rounded-3xl border border-gray-200 bg-gray-50 p-10 text-center sm:p-16">
-            <div className="text-6xl">
-              📖
-            </div>
+            <div className="text-6xl">📖</div>
 
             <h3 className="mt-6 text-2xl font-black">
               لا توجد فصول بعد
