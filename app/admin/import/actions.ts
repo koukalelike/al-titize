@@ -24,7 +24,6 @@ type ImportChapterResult = {
   skipped?: boolean;
   error?: string;
   message?: string;
-
   downloadedBytes?: number;
   uploadedBytes?: number;
 };
@@ -36,7 +35,6 @@ type BatchImportResult = {
   skipped: number;
   failed: number;
   totalPages: number;
-
   downloadedBytes: number;
   uploadedBytes: number;
   totalBytes: number;
@@ -48,7 +46,6 @@ type BatchImportResult = {
     success: boolean;
     skipped: boolean;
     error?: string;
-
     downloadedBytes?: number;
     uploadedBytes?: number;
   }[];
@@ -58,38 +55,27 @@ type BatchImportResult = {
 
 /*
  * إعدادات الأداء
- *
- * صفحتان فقط في نفس الوقت.
- * هذا يعطي استقرارًا أفضل أثناء التحميل والرفع.
  */
 const PAGE_CONCURRENCY = 2;
-
-/*
- * عدد محاولات تحميل الصفحة.
- */
 const PAGE_RETRIES = 3;
-
-/*
- * مهلة تحميل الصفحة.
- */
 const PAGE_TIMEOUT_MS = 30_000;
 
 /*
- * تحويل Bytes إلى MB.
+ * تحويل Bytes إلى MB
  */
 function bytesToMB(bytes: number) {
   return bytes / 1024 / 1024;
 }
 
 /*
- * تحويل Bytes إلى GB.
+ * تحويل Bytes إلى GB
  */
 function bytesToGB(bytes: number) {
   return bytes / 1024 / 1024 / 1024;
 }
 
 /*
- * تأخير بسيط.
+ * تأخير بسيط
  */
 function sleep(ms: number) {
   return new Promise((resolve) =>
@@ -99,7 +85,6 @@ function sleep(ms: number) {
 
 /*
  * تحميل صفحة مع:
- *
  * - Timeout
  * - Retry
  * - انتظار متدرج
@@ -110,37 +95,31 @@ async function downloadPageWithRetry(
   pageNumber: number,
   totalPages: number
 ) {
-  let lastError =
-    "فشل تحميل الصفحة.";
+  let lastError = "فشل تحميل الصفحة.";
 
   for (
     let attempt = 1;
     attempt <= PAGE_RETRIES;
     attempt++
   ) {
-    const controller =
-      new AbortController();
+    const controller = new AbortController();
 
-    const timeout =
-      setTimeout(() => {
-        controller.abort();
-      }, PAGE_TIMEOUT_MS);
+    const timeout = setTimeout(() => {
+      controller.abort();
+    }, PAGE_TIMEOUT_MS);
 
     try {
       console.log(
         `⬇️ الصفحة ${pageNumber}/${totalPages} — محاولة ${attempt}/${PAGE_RETRIES}`
       );
 
-      const response =
-        await fetch(url, {
-          cache: "no-store",
-          signal: controller.signal,
-        });
+      const response = await fetch(url, {
+        cache: "no-store",
+        signal: controller.signal,
+      });
 
       if (!response.ok) {
-        throw new Error(
-          `HTTP ${response.status}`
-        );
+        throw new Error(`HTTP ${response.status}`);
       }
 
       const arrayBuffer =
@@ -155,9 +134,8 @@ async function downloadPageWithRetry(
       }
 
       const contentType =
-        response.headers.get(
-          "content-type"
-        ) || "image/jpeg";
+        response.headers.get("content-type") ||
+        "image/jpeg";
 
       return {
         arrayBuffer,
@@ -169,8 +147,7 @@ async function downloadPageWithRetry(
 
       lastError =
         error instanceof Error
-          ? error.name ===
-            "AbortError"
+          ? error.name === "AbortError"
             ? `انتهت مهلة تحميل الصفحة ${pageNumber}.`
             : error.message
           : `فشل تحميل الصفحة ${pageNumber}.`;
@@ -179,25 +156,14 @@ async function downloadPageWithRetry(
         `⚠️ فشل الصفحة ${pageNumber}: ${lastError}`
       );
 
-      if (
-        attempt < PAGE_RETRIES
-      ) {
-        /*
-         * انتظار متدرج:
-         *
-         * المحاولة الثانية = 1 ثانية
-         * المحاولة الثالثة = 2 ثانية
-         */
-        const retryDelay =
-          attempt * 1000;
+      if (attempt < PAGE_RETRIES) {
+        const retryDelay = attempt * 1000;
 
         console.log(
           `🔄 إعادة المحاولة بعد ${retryDelay / 1000} ثانية...`
         );
 
-        await sleep(
-          retryDelay
-        );
+        await sleep(retryDelay);
       }
     }
   }
@@ -208,17 +174,7 @@ async function downloadPageWithRetry(
 }
 
 /*
- * التحقق من ترتيب الصفحات.
- *
- * نتأكد أن:
- *
- * 1
- * 2
- * 3
- * 4
- * ...
- *
- * بدون تكرار أو نقص.
+ * التحقق من ترتيب الصفحات
  */
 function validatePageOrder(
   pageRows: {
@@ -228,10 +184,7 @@ function validatePageOrder(
   }[],
   expectedPageCount: number
 ) {
-  if (
-    pageRows.length !==
-    expectedPageCount
-  ) {
+  if (pageRows.length !== expectedPageCount) {
     throw new Error(
       `عدد الصفحات غير صحيح: تم تجهيز ${pageRows.length} من أصل ${expectedPageCount}.`
     );
@@ -242,32 +195,22 @@ function validatePageOrder(
     i < pageRows.length;
     i++
   ) {
-    const expectedNumber =
-      i + 1;
-
+    const expectedNumber = i + 1;
     const actualNumber =
       pageRows[i].page_number;
 
-    if (
-      actualNumber !==
-      expectedNumber
-    ) {
+    if (actualNumber !== expectedNumber) {
       throw new Error(
         `ترتيب الصفحات غير صحيح عند الصفحة ${expectedNumber}. تم العثور على ${actualNumber}.`
       );
     }
   }
 
-  /*
-   * فحص إضافي للتكرار.
-   */
-  const pageNumbers =
-    new Set(
-      pageRows.map(
-        (page) =>
-          page.page_number
-      )
-    );
+  const pageNumbers = new Set(
+    pageRows.map(
+      (page) => page.page_number
+    )
+  );
 
   if (
     pageNumbers.size !==
@@ -284,35 +227,31 @@ function validatePageOrder(
 }
 
 /*
- * التحقق من المستخدم الإداري.
+ * التحقق من المستخدم الإداري
  */
 async function checkAdmin() {
-  const supabase =
-    await createClient();
+  const supabase = await createClient();
 
   const {
     data: { user },
-  } =
-    await supabase.auth.getUser();
+  } = await supabase.auth.getUser();
 
   if (!user) {
     return {
       supabase,
       user: null,
-      error:
-        "يجب تسجيل الدخول أولاً.",
+      error: "يجب تسجيل الدخول أولاً.",
     };
   }
 
   const {
     data: profile,
     error: profileError,
-  } =
-    await supabase
-      .from("profiles")
-      .select("role")
-      .eq("id", user.id)
-      .maybeSingle();
+  } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", user.id)
+    .maybeSingle();
 
   if (profileError) {
     return {
@@ -323,9 +262,7 @@ async function checkAdmin() {
     };
   }
 
-  if (
-    profile?.role !== "admin"
-  ) {
+  if (profile?.role !== "admin") {
     return {
       supabase,
       user,
@@ -342,13 +279,13 @@ async function checkAdmin() {
 }
 
 /*
- * إنشاء المانغا إذا لم تكن موجودة.
+ * إنشاء/البحث عن المانغا
  *
- * تم تعديل هذا الجزء فقط:
- *
- * - جلب الغلاف الرسمي من MangaDex.
- * - تحديث cover_url إذا كانت المانغا موجودة
- *   وكان الغلاف مختلفًا أو فارغًا.
+ * مهم:
+ * في كل مرة يتم فيها استيراد مانغا،
+ * نجلب الغلاف الرسمي من MangaDex،
+ * ثم نحدّث cover_url في قاعدة البيانات
+ * حتى لو كانت المانغا موجودة مسبقًا.
  */
 async function ensureMangaExists(
   supabase: any,
@@ -361,17 +298,13 @@ async function ensureMangaExists(
   const {
     data: existingManga,
     error: existingError,
-  } =
-    await supabase
-      .from("manga")
-      .select(
-        "id, title, description, cover_url, status, mangadex_id"
-      )
-      .eq(
-        "mangadex_id",
-        mangaDexId
-      )
-      .maybeSingle();
+  } = await supabase
+    .from("manga")
+    .select(
+      "id, title, description, cover_url, status, mangadex_id"
+    )
+    .eq("mangadex_id", mangaDexId)
+    .maybeSingle();
 
   if (existingError) {
     throw new Error(
@@ -380,21 +313,26 @@ async function ensureMangaExists(
   }
 
   /*
-   * جلب معلومات MangaDex للحصول على
-   * الغلاف الرسمي.
-   *
-   * getMangaInfo() يعيد coverUrl
-   * بعد جلب cover_art.
+   * جلب معلومات MangaDex والغلاف الرسمي
    */
+  console.log(
+    "🖼️ جلب الغلاف الرسمي من MangaDex..."
+  );
+
   const mangaInfo =
-    await getMangaInfo(
-      mangaDexId
-    );
+    await getMangaInfo(mangaDexId);
 
   const officialCoverUrl =
-    mangaInfo?.coverUrl ||
-    null;
+    mangaInfo?.coverUrl || null;
 
+  console.log(
+    "🖼️ رابط الغلاف الرسمي:",
+    officialCoverUrl
+  );
+
+  /*
+   * المانغا موجودة بالفعل
+   */
   if (existingManga) {
     console.log(
       "✅ المانغا موجودة بالفعل:",
@@ -402,9 +340,8 @@ async function ensureMangaExists(
     );
 
     /*
-     * إذا كان الغلاف الموجود مختلفًا
-     * عن الغلاف الرسمي في MangaDex،
-     * نقوم بتحديثه.
+     * تحديث الغلاف دائمًا إذا وجد غلاف
+     * رسمي من MangaDex.
      */
     if (
       officialCoverUrl &&
@@ -412,27 +349,26 @@ async function ensureMangaExists(
         officialCoverUrl
     ) {
       console.log(
-        "🖼️ تحديث غلاف المانغا إلى الغلاف الرسمي من MangaDex..."
+        "🔄 تحديث cover_url إلى الغلاف الرسمي..."
       );
 
       const {
         data: updatedManga,
         error: updateError,
-      } =
-        await supabase
-          .from("manga")
-          .update({
-            cover_url:
-              officialCoverUrl,
-          })
-          .eq(
-            "id",
-            existingManga.id
-          )
-          .select(
-            "id, title, description, cover_url, status, mangadex_id"
-          )
-          .single();
+      } = await supabase
+        .from("manga")
+        .update({
+          cover_url:
+            officialCoverUrl,
+        })
+        .eq(
+          "id",
+          existingManga.id
+        )
+        .select(
+          "id, title, description, cover_url, status, mangadex_id"
+        )
+        .single();
 
       if (updateError) {
         throw new Error(
@@ -441,23 +377,29 @@ async function ensureMangaExists(
       }
 
       console.log(
-        "✅ تم تحديث الغلاف:",
-        officialCoverUrl
+        "✅ تم تحديث الغلاف بنجاح:",
+        updatedManga.cover_url
       );
 
       return updatedManga;
     }
 
+    console.log(
+      "✅ الغلاف الموجود مطابق للغلاف الرسمي."
+    );
+
     return existingManga;
   }
 
+  /*
+   * المانغا غير موجودة
+   */
   console.log(
     "📕 المانغا غير موجودة، سيتم إنشاؤها تلقائيًا..."
   );
 
   const attributes =
-    mangaInfo?.data?.attributes ||
-    {};
+    mangaInfo?.data?.attributes || {};
 
   const title =
     attributes?.title?.en ||
@@ -473,38 +415,26 @@ async function ensureMangaExists(
     )[0] ||
     "";
 
-  /*
-   * الغلاف الرسمي الذي تم جلبه
-   * من MangaDex.
-   */
-  const coverUrl =
-    officialCoverUrl;
-
   const {
     data: newManga,
     error: insertError,
-  } =
-    await supabase
-      .from("manga")
-      .insert({
-        title: String(title),
-        description:
-          String(description),
-        cover_url:
-          coverUrl,
-        status: "ongoing",
-        mangadex_id:
-          mangaDexId,
-      })
-      .select(
-        "id, title, description, cover_url, status, mangadex_id"
-      )
-      .single();
+  } = await supabase
+    .from("manga")
+    .insert({
+      title: String(title),
+      description: String(description),
+      cover_url:
+        officialCoverUrl,
+      status: "ongoing",
+      mangadex_id:
+        mangaDexId,
+    })
+    .select(
+      "id, title, description, cover_url, status, mangadex_id"
+    )
+    .single();
 
-  if (
-    insertError ||
-    !newManga
-  ) {
+  if (insertError || !newManga) {
     throw new Error(
       insertError?.message ||
         "فشل إنشاء المانغا في AL TITIZE."
@@ -516,11 +446,16 @@ async function ensureMangaExists(
     newManga.id
   );
 
+  console.log(
+    "🖼️ الغلاف المحفوظ:",
+    newManga.cover_url
+  );
+
   return newManga;
 }
 
 /*
- * استيراد فصل واحد.
+ * استيراد فصل واحد
  */
 async function importOneChapter(
   supabase: any,
@@ -531,10 +466,6 @@ async function importOneChapter(
     | number
     | null = null;
 
-  /*
-   * الملفات التي تم رفعها.
-   * نستخدمها للتنظيف إذا فشل الفصل.
-   */
   const uploadedFilePaths: string[] =
     [];
 
@@ -594,23 +525,20 @@ async function importOneChapter(
     const {
       data: existingChapter,
       error: existingChapterError,
-    } =
-      await supabase
-        .from("chapters")
-        .select("id")
-        .eq(
-          "manga_id",
-          manga.id
-        )
-        .eq(
-          "chapter_number",
-          chapterNumber
-        )
-        .maybeSingle();
+    } = await supabase
+      .from("chapters")
+      .select("id")
+      .eq(
+        "manga_id",
+        manga.id
+      )
+      .eq(
+        "chapter_number",
+        chapterNumber
+      )
+      .maybeSingle();
 
-    if (
-      existingChapterError
-    ) {
+    if (existingChapterError) {
       throw new Error(
         `فشل التحقق من الفصل: ${existingChapterError.message}`
       );
@@ -656,12 +584,7 @@ async function importOneChapter(
     }
 
     /*
-     * ترتيب صفحات المصدر قبل أي معالجة.
-     *
-     * حتى لو تغير ترتيب البيانات القادمة
-     * من API، سنعيدها دائمًا:
-     *
-     * 1 → 2 → 3 → 4 → ...
+     * ترتيب صفحات المصدر
      */
     const pages =
       [...rawPages].sort(
@@ -671,7 +594,7 @@ async function importOneChapter(
       );
 
     /*
-     * التحقق من ترتيب صفحات المصدر.
+     * التحقق من ترتيب صفحات المصدر
      */
     for (
       let i = 0;
@@ -705,20 +628,19 @@ async function importOneChapter(
     const {
       data: newChapter,
       error: chapterError,
-    } =
-      await supabase
-        .from("chapters")
-        .insert({
-          manga_id:
-            manga.id,
-          chapter_number:
-            chapterNumber,
-          title:
-            chapter.title ||
-            `Chapter ${chapterNumber}`,
-        })
-        .select("id")
-        .single();
+    } = await supabase
+      .from("chapters")
+      .insert({
+        manga_id:
+          manga.id,
+        chapter_number:
+          chapterNumber,
+        title:
+          chapter.title ||
+          `Chapter ${chapterNumber}`,
+      })
+      .select("id")
+      .single();
 
     if (
       chapterError ||
@@ -735,8 +657,6 @@ async function importOneChapter(
 
     /*
      * 6. تحميل ورفع الصفحات
-     *
-     * صفحتان فقط في نفس الوقت.
      */
     const pageRows: {
       chapter_id: number;
@@ -757,15 +677,11 @@ async function importOneChapter(
 
       console.log(
         `⚡ دفعة صفحات: ${i + 1}-${Math.min(
-          i +
-            PAGE_CONCURRENCY,
+          i + PAGE_CONCURRENCY,
           pages.length
         )}/${pages.length}`
       );
 
-      /*
-       * تشغيل صفحتين فقط في نفس الوقت.
-       */
       const batchResults =
         await Promise.all(
           currentPages.map(
@@ -777,9 +693,6 @@ async function importOneChapter(
                   pages.length
                 );
 
-              /*
-               * حساب حجم التحميل.
-               */
               downloadedBytes +=
                 downloaded.bytes;
 
@@ -794,10 +707,6 @@ async function importOneChapter(
                   ? "webp"
                   : "jpg";
 
-              /*
-               * المسار يعتمد على
-               * رقم الصفحة الحقيقي.
-               */
               const filePath =
                 `chapters/${newChapter.id}/page-${page.page_number}.${extension}`;
 
@@ -809,20 +718,13 @@ async function importOneChapter(
                 error: uploadError,
               } =
                 await supabase.storage
-                  .from(
-                    "manga-pages"
-                  )
+                  .from("manga-pages")
                   .upload(
                     filePath,
                     downloaded.arrayBuffer,
                     {
                       contentType:
                         downloaded.contentType,
-
-                      /*
-                       * يسمح بإعادة الرفع
-                       * لنفس الصفحة عند الحاجة.
-                       */
                       upsert: true,
                     }
                   );
@@ -833,9 +735,6 @@ async function importOneChapter(
                 );
               }
 
-              /*
-               * حساب حجم الرفع.
-               */
               uploadedBytes +=
                 downloaded.bytes;
 
@@ -875,16 +774,10 @@ async function importOneChapter(
           )
         );
 
-      /*
-       * إضافة نتائج الدفعة.
-       */
       pageRows.push(
         ...batchResults
       );
 
-      /*
-       * ترتيب مؤقت بعد كل دفعة.
-       */
       pageRows.sort(
         (a, b) =>
           a.page_number -
@@ -893,8 +786,7 @@ async function importOneChapter(
 
       console.log(
         `📊 التقدم: ${Math.min(
-          i +
-            PAGE_CONCURRENCY,
+          i + PAGE_CONCURRENCY,
           pages.length
         )}/${pages.length} صفحة`
       );
@@ -913,37 +805,23 @@ async function importOneChapter(
     }
 
     /*
-     * ==================================================
-     * التحقق النهائي من الصفحات قبل قاعدة البيانات
-     * ==================================================
+     * التحقق النهائي
      */
-
     console.log(
       "🔐 التحقق النهائي من ترتيب الصفحات..."
     );
 
-    /*
-     * ترتيب صارم نهائي.
-     */
     pageRows.sort(
       (a, b) =>
         a.page_number -
         b.page_number
     );
 
-    /*
-     * التحقق من العدد والترتيب
-     * والتكرار.
-     */
     validatePageOrder(
       pageRows,
       pages.length
     );
 
-    /*
-     * تأكيد إضافي أن كل الصفحات
-     * تخص الفصل الحالي.
-     */
     for (
       const pageRow of pageRows
     ) {
@@ -962,7 +840,7 @@ async function importOneChapter(
     );
 
     /*
-     * 7. حفظ الصفحات في قاعدة البيانات.
+     * 7. حفظ الصفحات
      */
     console.log(
       "💾 حفظ الصفحات في قاعدة البيانات..."
@@ -1049,7 +927,7 @@ async function importOneChapter(
     );
 
     /*
-     * تنظيف الملفات المرفوعة.
+     * تنظيف الملفات
      */
     if (
       uploadedFilePaths.length
@@ -1085,7 +963,7 @@ async function importOneChapter(
     }
 
     /*
-     * حذف الفصل الناقص.
+     * حذف الفصل الناقص
      */
     if (createdChapterId) {
       console.log(
@@ -1117,7 +995,7 @@ async function importOneChapter(
 }
 
 /*
- * استيراد فصل واحد يدويًا.
+ * استيراد فصل واحد يدويًا
  */
 export async function importChapterAction(
   mangaDexId: string,
@@ -1164,7 +1042,7 @@ export async function importChapterAction(
 }
 
 /*
- * استيراد دفعة كاملة.
+ * استيراد دفعة كاملة
  */
 export async function importChaptersBatchAction(
   mangaDexId: string,
@@ -1227,7 +1105,8 @@ export async function importChaptersBatchAction(
 
   try {
     /*
-     * إنشاء/البحث عن المانغا.
+     * إنشاء/البحث عن المانغا
+     * ويتم هنا تحديث الغلاف أيضًا.
      */
     const manga =
       await ensureMangaExists(
@@ -1250,12 +1129,11 @@ export async function importChaptersBatchAction(
       [];
 
     /*
-     * الفصول بالتتابع.
-     *
-     * صفحات الفصل الواحد:
-     * 2 في نفس الوقت.
+     * الفصول بالتتابع
      */
-    for (const chapter of chapters) {
+    for (
+      const chapter of chapters
+    ) {
       console.log(
         `📦 معالجة الفصل ${
           chapter.chapter ||
@@ -1330,7 +1208,7 @@ export async function importChaptersBatchAction(
       );
 
       console.log(
-        `📊 إحصائيات الدفعة حتى الآن`
+        "📊 إحصائيات الدفعة حتى الآن"
       );
 
       console.log(
