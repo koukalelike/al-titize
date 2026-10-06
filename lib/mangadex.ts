@@ -37,7 +37,9 @@ async function mangaDexFetch(path: string) {
   return response.json();
 }
 
-export function getMangaId(input: string): string | null {
+export function getMangaId(
+  input: string
+): string | null {
   const value = input.trim();
 
   if (
@@ -58,7 +60,9 @@ export function getMangaId(input: string): string | null {
 /*
  * جلب معلومات المانجا
  */
-export async function getMangaInfo(input: string) {
+export async function getMangaInfo(
+  input: string
+) {
   const mangaId = getMangaId(input);
 
   if (!mangaId) {
@@ -67,25 +71,55 @@ export async function getMangaInfo(input: string) {
     );
   }
 
-  const result = await mangaDexFetch(
-    `/manga/${mangaId}?includes[]=cover_art`
-  );
+  const result =
+    await mangaDexFetch(
+      `/manga/${mangaId}?includes[]=cover_art`
+    );
 
   const mangaData = result.data;
 
+  /*
+   * MangaDex يعيد الغلاف الأساسي
+   * داخل relationships من نوع cover_art.
+   */
   const coverRelationship =
     mangaData?.relationships?.find(
       (relationship: any) =>
-        relationship.type === "cover_art"
+        relationship?.type ===
+        "cover_art"
     );
 
   const fileName =
-    coverRelationship?.attributes?.fileName ??
+    coverRelationship?.attributes
+      ?.fileName ??
     null;
 
-  const coverUrl = fileName
-    ? `${MANGADEX_UPLOADS}/covers/${mangaId}/${fileName}`
-    : null;
+  /*
+   * رابط الغلاف الأصلي.
+   */
+  const originalCoverUrl =
+    fileName
+      ? `${MANGADEX_UPLOADS}/covers/${mangaId}/${fileName}`
+      : null;
+
+  /*
+   * نستخدم نسخة 512px من MangaDex
+   * لأنها أخف ومناسبة للعرض على الموقع.
+   */
+  const coverUrl =
+    originalCoverUrl
+      ? `${originalCoverUrl}.512.jpg`
+      : null;
+
+  console.log(
+    "🖼️ MangaDex cover filename:",
+    fileName
+  );
+
+  console.log(
+    "🖼️ MangaDex cover URL:",
+    coverUrl
+  );
 
   return {
     id: mangaId,
@@ -103,7 +137,8 @@ export async function getMangaChapters(
   limit: number = 100,
   offset: number = 0
 ) {
-  const params = new URLSearchParams();
+  const params =
+    new URLSearchParams();
 
   params.append(
     "translatedLanguage[]",
@@ -112,12 +147,16 @@ export async function getMangaChapters(
 
   params.append(
     "limit",
-    String(Math.min(limit, 100))
+    String(
+      Math.min(limit, 100)
+    )
   );
 
   params.append(
     "offset",
-    String(Math.max(offset, 0))
+    String(
+      Math.max(offset, 0)
+    )
   );
 
   params.append(
@@ -125,12 +164,15 @@ export async function getMangaChapters(
     "asc"
   );
 
-  const result = await mangaDexFetch(
-    `/manga/${mangaId}/feed?${params.toString()}`
-  );
+  const result =
+    await mangaDexFetch(
+      `/manga/${mangaId}/feed?${params.toString()}`
+    );
 
   return {
-    total: Number(result.total ?? 0),
+    total: Number(
+      result.total ?? 0
+    ),
 
     offset: Number(
       result.offset ?? offset
@@ -140,32 +182,37 @@ export async function getMangaChapters(
       result.limit ?? limit
     ),
 
-    chapters: (result.data || []).map(
-      (chapter: any) => ({
-        id: chapter.id,
+    chapters:
+      (result.data || []).map(
+        (chapter: any) => ({
+          id: chapter.id,
 
-        chapter:
-          chapter.attributes?.chapter ??
-          null,
+          chapter:
+            chapter.attributes
+              ?.chapter ??
+            null,
 
-        title:
-          chapter.attributes?.title ??
-          "",
+          title:
+            chapter.attributes
+              ?.title ??
+            "",
 
-        language:
-          chapter.attributes
-            ?.translatedLanguage ??
-          "",
+          language:
+            chapter.attributes
+              ?.translatedLanguage ??
+            "",
 
-        pages:
-          chapter.attributes?.pages ??
-          0,
+          pages:
+            chapter.attributes
+              ?.pages ??
+            0,
 
-        volume:
-          chapter.attributes?.volume ??
-          null,
-      })
-    ),
+          volume:
+            chapter.attributes
+              ?.volume ??
+            null,
+        })
+      ),
   };
 }
 
@@ -177,16 +224,21 @@ export async function getMangaChaptersAllLanguages(
   limit: number = 100,
   offset: number = 0
 ) {
-  const params = new URLSearchParams();
+  const params =
+    new URLSearchParams();
 
   params.append(
     "limit",
-    String(Math.min(limit, 100))
+    String(
+      Math.min(limit, 100)
+    )
   );
 
   params.append(
     "offset",
-    String(Math.max(offset, 0))
+    String(
+      Math.max(offset, 0)
+    )
   );
 
   params.append(
@@ -194,12 +246,15 @@ export async function getMangaChaptersAllLanguages(
     "asc"
   );
 
-  const result = await mangaDexFetch(
-    `/manga/${mangaId}/feed?${params.toString()}`
-  );
+  const result =
+    await mangaDexFetch(
+      `/manga/${mangaId}/feed?${params.toString()}`
+    );
 
   return {
-    total: Number(result.total ?? 0),
+    total: Number(
+      result.total ?? 0
+    ),
 
     offset: Number(
       result.offset ?? offset
@@ -209,32 +264,37 @@ export async function getMangaChaptersAllLanguages(
       result.limit ?? limit
     ),
 
-    chapters: (result.data || []).map(
-      (chapter: any) => ({
-        id: chapter.id,
+    chapters:
+      (result.data || []).map(
+        (chapter: any) => ({
+          id: chapter.id,
 
-        chapter:
-          chapter.attributes?.chapter ??
-          null,
+          chapter:
+            chapter.attributes
+              ?.chapter ??
+            null,
 
-        title:
-          chapter.attributes?.title ??
-          "",
+          title:
+            chapter.attributes
+              ?.title ??
+            "",
 
-        language:
-          chapter.attributes
-            ?.translatedLanguage ??
-          "",
+          language:
+            chapter.attributes
+              ?.translatedLanguage ??
+            "",
 
-        pages:
-          chapter.attributes?.pages ??
-          0,
+          pages:
+            chapter.attributes
+              ?.pages ??
+            0,
 
-        volume:
-          chapter.attributes?.volume ??
-          null,
-      })
-    ),
+          volume:
+            chapter.attributes
+              ?.volume ??
+            null,
+        })
+      ),
   };
 }
 
@@ -248,12 +308,13 @@ export async function getMangaChaptersAllLanguages(
 export async function getMangaPreferredLanguage(
   mangaId: string
 ) {
-  const arabic = await getMangaChapters(
-    mangaId,
-    "ar",
-    1,
-    0
-  );
+  const arabic =
+    await getMangaChapters(
+      mangaId,
+      "ar",
+      1,
+      0
+    );
 
   if (arabic.total > 0) {
     return {
@@ -278,13 +339,12 @@ export async function getMangaPreferredLanguage(
     };
   }
 
-  const languageCounts: Record<
-    string,
-    number
-  > = {};
+  const languageCounts:
+    Record<string, number> = {};
 
   for (
-    const chapter of allLanguages.chapters
+    const chapter of
+      allLanguages.chapters
   ) {
     const chapterLanguage =
       chapter.language;
@@ -293,13 +353,18 @@ export async function getMangaPreferredLanguage(
       continue;
     }
 
-    languageCounts[chapterLanguage] =
-      (languageCounts[chapterLanguage] || 0) +
-      1;
+    languageCounts[
+      chapterLanguage
+    ] =
+      (languageCounts[
+        chapterLanguage
+      ] || 0) + 1;
   }
 
   const preferredLanguage =
-    Object.entries(languageCounts).sort(
+    Object.entries(
+      languageCounts
+    ).sort(
       (a, b) => b[1] - a[1]
     )[0];
 
@@ -310,8 +375,10 @@ export async function getMangaPreferredLanguage(
     };
   }
 
-  const [language, count] =
-    preferredLanguage;
+  const [
+    language,
+    count,
+  ] = preferredLanguage;
 
   const languageChapters =
     await getMangaChapters(
@@ -336,12 +403,14 @@ export async function getMangaPreferredLanguage(
 export async function getChapterInfo(
   chapterId: string
 ) {
-  const result = await mangaDexFetch(
-    `/chapter/${chapterId}`
-  );
+  const result =
+    await mangaDexFetch(
+      `/chapter/${chapterId}`
+    );
 
   const attributes =
-    result.data?.attributes || {};
+    result.data?.attributes ||
+    {};
 
   return {
     id:
@@ -357,7 +426,8 @@ export async function getChapterInfo(
       null,
 
     language:
-      attributes.translatedLanguage ??
+      attributes
+        .translatedLanguage ??
       "",
   };
 }
@@ -368,9 +438,10 @@ export async function getChapterInfo(
 export async function getChapterPages(
   chapterId: string
 ) {
-  const result = await mangaDexFetch(
-    `/at-home/server/${chapterId}`
-  );
+  const result =
+    await mangaDexFetch(
+      `/at-home/server/${chapterId}`
+    );
 
   const baseUrl =
     result.baseUrl;
@@ -384,7 +455,9 @@ export async function getChapterPages(
   if (
     !baseUrl ||
     !hash ||
-    !Array.isArray(filenames) ||
+    !Array.isArray(
+      filenames
+    ) ||
     filenames.length === 0
   ) {
     throw new Error(
@@ -397,7 +470,8 @@ export async function getChapterPages(
       filename: string,
       index: number
     ) => ({
-      page_number: index + 1,
+      page_number:
+        index + 1,
 
       filename,
 
