@@ -1,5 +1,41 @@
 const MANGADEX_API = "https://api.mangadex.org";
+const MANGADEX_PROXY = "/api/mangadex";
 const MANGADEX_UPLOADS = "https://uploads.mangadex.org";
+
+async function mangaDexFetch(path: string) {
+  const isBrowser =
+    typeof window !== "undefined";
+
+  const url = isBrowser
+    ? `${MANGADEX_PROXY}?path=${encodeURIComponent(path)}`
+    : `${MANGADEX_API}${path}`;
+
+  const response = await fetch(url, {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    let message = "";
+
+    try {
+      const data = await response.json();
+
+      message =
+        data?.error ||
+        data?.message ||
+        "";
+    } catch {
+      // تجاهل خطأ قراءة JSON
+    }
+
+    throw new Error(
+      message ||
+        `MangaDex API error: ${response.status}`
+    );
+  }
+
+  return response.json();
+}
 
 export function getMangaId(input: string): string | null {
   const value = input.trim();
@@ -31,20 +67,10 @@ export async function getMangaInfo(input: string) {
     );
   }
 
-  const response = await fetch(
-    `${MANGADEX_API}/manga/${mangaId}?includes[]=cover_art`,
-    {
-      cache: "no-store",
-    }
+  const result = await mangaDexFetch(
+    `/manga/${mangaId}?includes[]=cover_art`
   );
 
-  if (!response.ok) {
-    throw new Error(
-      `MangaDex API error: ${response.status}`
-    );
-  }
-
-  const result = await response.json();
   const mangaData = result.data;
 
   const coverRelationship =
@@ -54,7 +80,8 @@ export async function getMangaInfo(input: string) {
     );
 
   const fileName =
-    coverRelationship?.attributes?.fileName ?? null;
+    coverRelationship?.attributes?.fileName ??
+    null;
 
   const coverUrl = fileName
     ? `${MANGADEX_UPLOADS}/covers/${mangaId}/${fileName}`
@@ -98,20 +125,9 @@ export async function getMangaChapters(
     "asc"
   );
 
-  const response = await fetch(
-    `${MANGADEX_API}/manga/${mangaId}/feed?${params.toString()}`,
-    {
-      cache: "no-store",
-    }
+  const result = await mangaDexFetch(
+    `/manga/${mangaId}/feed?${params.toString()}`
   );
-
-  if (!response.ok) {
-    throw new Error(
-      `MangaDex Chapter API error: ${response.status}`
-    );
-  }
-
-  const result = await response.json();
 
   return {
     total: Number(result.total ?? 0),
@@ -178,20 +194,9 @@ export async function getMangaChaptersAllLanguages(
     "asc"
   );
 
-  const response = await fetch(
-    `${MANGADEX_API}/manga/${mangaId}/feed?${params.toString()}`,
-    {
-      cache: "no-store",
-    }
+  const result = await mangaDexFetch(
+    `/manga/${mangaId}/feed?${params.toString()}`
   );
-
-  if (!response.ok) {
-    throw new Error(
-      `MangaDex Chapter API error: ${response.status}`
-    );
-  }
-
-  const result = await response.json();
 
   return {
     total: Number(result.total ?? 0),
@@ -235,17 +240,20 @@ export async function getMangaChaptersAllLanguages(
 
 /*
  * اختيار اللغة تلقائيًا
+ *
+ * العربية أولًا.
+ * إذا لم توجد العربية،
+ * يتم اختيار اللغة الأكثر توفرًا.
  */
 export async function getMangaPreferredLanguage(
   mangaId: string
 ) {
-  const arabic =
-    await getMangaChapters(
-      mangaId,
-      "ar",
-      1,
-      0
-    );
+  const arabic = await getMangaChapters(
+    mangaId,
+    "ar",
+    1,
+    0
+  );
 
   if (arabic.total > 0) {
     return {
@@ -286,8 +294,8 @@ export async function getMangaPreferredLanguage(
     }
 
     languageCounts[chapterLanguage] =
-      (languageCounts[chapterLanguage] ||
-        0) + 1;
+      (languageCounts[chapterLanguage] || 0) +
+      1;
   }
 
   const preferredLanguage =
@@ -302,10 +310,8 @@ export async function getMangaPreferredLanguage(
     };
   }
 
-  const [
-    language,
-    count,
-  ] = preferredLanguage;
+  const [language, count] =
+    preferredLanguage;
 
   const languageChapters =
     await getMangaChapters(
@@ -330,21 +336,9 @@ export async function getMangaPreferredLanguage(
 export async function getChapterInfo(
   chapterId: string
 ) {
-  const response = await fetch(
-    `${MANGADEX_API}/chapter/${chapterId}`,
-    {
-      cache: "no-store",
-    }
+  const result = await mangaDexFetch(
+    `/chapter/${chapterId}`
   );
-
-  if (!response.ok) {
-    throw new Error(
-      `MangaDex Chapter API error: ${response.status}`
-    );
-  }
-
-  const result =
-    await response.json();
 
   const attributes =
     result.data?.attributes || {};
@@ -374,21 +368,9 @@ export async function getChapterInfo(
 export async function getChapterPages(
   chapterId: string
 ) {
-  const response = await fetch(
-    `${MANGADEX_API}/at-home/server/${chapterId}`,
-    {
-      cache: "no-store",
-    }
+  const result = await mangaDexFetch(
+    `/at-home/server/${chapterId}`
   );
-
-  if (!response.ok) {
-    throw new Error(
-      `MangaDex At-Home API error: ${response.status}`
-    );
-  }
-
-  const result =
-    await response.json();
 
   const baseUrl =
     result.baseUrl;
@@ -415,8 +397,7 @@ export async function getChapterPages(
       filename: string,
       index: number
     ) => ({
-      page_number:
-        index + 1,
+      page_number: index + 1,
 
       filename,
 

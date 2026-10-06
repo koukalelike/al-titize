@@ -55,8 +55,13 @@ type BatchImportResult = {
 
 /*
  * إعدادات الأداء
+ *
+ * 4 صفحات في نفس الوقت بدل 2.
+ *
+ * الترتيب النهائي لا يتأثر لأننا نرتب
+ * جميع الصفحات قبل حفظها في قاعدة البيانات.
  */
-const PAGE_CONCURRENCY = 2;
+const PAGE_CONCURRENCY = 4;
 const PAGE_RETRIES = 3;
 const PAGE_TIMEOUT_MS = 30_000;
 
@@ -657,6 +662,15 @@ async function importOneChapter(
 
     /*
      * 6. تحميل ورفع الصفحات
+     *
+     * يتم تنفيذ 4 صفحات في نفس الوقت.
+     *
+     * كل صفحة:
+     * 1. تُحمّل من MangaDex
+     * 2. تُرفع إلى Supabase
+     *
+     * وبعد انتهاء جميع الدفعات،
+     * يتم ترتيب pageRows قبل الحفظ.
      */
     const pageRows: {
       chapter_id: number;
@@ -774,14 +788,15 @@ async function importOneChapter(
           )
         );
 
+      /*
+       * نضيف النتائج فقط.
+       *
+       * لا نعمل sort هنا لأن ذلك كان
+       * يحدث بعد كل دفعة ويضيف عملاً
+       * غير ضروري.
+       */
       pageRows.push(
         ...batchResults
-      );
-
-      pageRows.sort(
-        (a, b) =>
-          a.page_number -
-          b.page_number
       );
 
       console.log(
@@ -811,6 +826,9 @@ async function importOneChapter(
       "🔐 التحقق النهائي من ترتيب الصفحات..."
     );
 
+    /*
+     * ترتيب واحد فقط قبل التحقق والحفظ.
+     */
     pageRows.sort(
       (a, b) =>
         a.page_number -
