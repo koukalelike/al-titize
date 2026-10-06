@@ -55,6 +55,28 @@ export default function MangaDetailsPage() {
           );
         }
 
+        console.log(
+          "================================="
+        );
+        console.log(
+          "[AL TITIZE COVER DEBUG]"
+        );
+        console.log(
+          "Manga ID:",
+          mangaData?.id
+        );
+        console.log(
+          "Manga title:",
+          mangaData?.title
+        );
+        console.log(
+          "Cover URL from Supabase:",
+          mangaData?.cover_url
+        );
+        console.log(
+          "================================="
+        );
+
         const { data: chaptersData, error: chaptersError } =
           await supabase
             .from("chapters")
@@ -75,7 +97,10 @@ export default function MangaDetailsPage() {
         setManga(mangaData);
         setChapters(chaptersData ?? []);
       } catch (err) {
-        console.error("MANGA DETAILS ERROR:", err);
+        console.error(
+          "MANGA DETAILS ERROR:",
+          err
+        );
 
         setError(
           err instanceof Error
@@ -114,7 +139,9 @@ export default function MangaDetailsPage() {
         className="flex min-h-screen items-center justify-center bg-white px-5"
       >
         <div className="w-full max-w-xl text-center">
-          <div className="text-6xl">⚠️</div>
+          <div className="text-6xl">
+            ⚠️
+          </div>
 
           <h1 className="mt-6 text-3xl font-black">
             حدث خطأ
@@ -142,7 +169,9 @@ export default function MangaDetailsPage() {
         className="flex min-h-screen items-center justify-center bg-white px-5"
       >
         <div className="text-center">
-          <div className="text-6xl">📚</div>
+          <div className="text-6xl">
+            📚
+          </div>
 
           <h1 className="mt-6 text-3xl font-black">
             المانجا غير موجودة
@@ -169,7 +198,6 @@ export default function MangaDetailsPage() {
       dir="rtl"
       className="min-h-screen overflow-x-hidden bg-white text-gray-900"
     >
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
           <a
@@ -202,12 +230,10 @@ export default function MangaDetailsPage() {
         </div>
       </header>
 
-      {/* Hero */}
       <section className="border-b border-gray-100 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-12 md:py-20">
           <div className="grid items-center gap-8 md:grid-cols-[300px_1fr] md:gap-10">
 
-            {/* Cover */}
             <div className="mx-auto w-full max-w-[260px] overflow-hidden rounded-3xl border border-gray-200 bg-white shadow-xl transition duration-500 hover:-translate-y-1 hover:shadow-2xl sm:max-w-[300px]">
               <div className="aspect-[3/4]">
                 {manga.cover_url ? (
@@ -216,6 +242,47 @@ export default function MangaDetailsPage() {
                     alt={manga.title}
                     loading="eager"
                     className="h-full w-full object-cover"
+                    onLoad={() => {
+                      console.log(
+                        "[AL TITIZE COVER DEBUG] COVER LOAD SUCCESS"
+                      );
+
+                      console.log(
+                        "Manga:",
+                        manga.title
+                      );
+
+                      console.log(
+                        "Cover URL:",
+                        manga.cover_url
+                      );
+                    }}
+                    onError={(event) => {
+                      console.error(
+                        "[AL TITIZE COVER DEBUG] COVER LOAD FAILED"
+                      );
+
+                      console.error(
+                        "Manga:",
+                        manga.title
+                      );
+
+                      console.error(
+                        "Cover URL:",
+                        manga.cover_url
+                      );
+
+                      console.error(
+                        "Image element:",
+                        event.currentTarget
+                      );
+
+                      console.error(
+                        "Current image src:",
+                        event.currentTarget.currentSrc ||
+                          event.currentTarget.src
+                      );
+                    }}
                   />
                 ) : (
                   <div className="flex h-full items-center justify-center bg-gray-100 text-sm text-gray-400">
@@ -225,7 +292,6 @@ export default function MangaDetailsPage() {
               </div>
             </div>
 
-            {/* Information */}
             <div className="text-center md:text-right">
               <div className="inline-flex rounded-full bg-black px-4 py-2 text-xs font-bold text-white shadow-sm">
                 {manga.status}
@@ -240,7 +306,6 @@ export default function MangaDetailsPage() {
                   "لا يوجد وصف لهذه المانجا حتى الآن."}
               </p>
 
-              {/* Main Buttons */}
               <div className="mt-7 grid grid-cols-1 gap-3 sm:flex sm:flex-wrap sm:justify-center md:justify-start">
                 <a
                   href={
@@ -261,7 +326,6 @@ export default function MangaDetailsPage() {
                 </a>
               </div>
 
-              {/* Stats */}
               <div className="mx-auto mt-8 grid max-w-lg grid-cols-2 gap-3 sm:grid-cols-3 md:mx-0 md:mt-10">
                 <div className="rounded-2xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-1 hover:shadow-md">
                   <p className="text-xs font-bold text-gray-400">
@@ -298,7 +362,6 @@ export default function MangaDetailsPage() {
         </div>
       </section>
 
-      {/* Chapters */}
       <section
         id="chapters"
         className="mx-auto max-w-5xl px-4 py-12 sm:px-6 sm:py-16"
@@ -319,7 +382,9 @@ export default function MangaDetailsPage() {
 
         {chapters.length === 0 ? (
           <div className="rounded-3xl border border-gray-200 bg-gray-50 p-10 text-center sm:p-16">
-            <div className="text-6xl">📖</div>
+            <div className="text-6xl">
+              📖
+            </div>
 
             <h3 className="mt-6 text-2xl font-black">
               لا توجد فصول بعد
@@ -358,6 +423,7 @@ export default function MangaDetailsPage() {
                   <span className="hidden sm:inline">
                     قراءة
                   </span>
+
                   <span className="sm:hidden">
                     →
                   </span>
@@ -373,7 +439,6 @@ export default function MangaDetailsPage() {
         )}
       </section>
 
-      {/* Footer */}
       <footer className="border-t border-gray-100 bg-gray-50">
         <div className="mx-auto max-w-7xl px-4 py-8 text-center sm:px-6 sm:py-10">
           <p className="text-sm font-black tracking-[0.25em]">
