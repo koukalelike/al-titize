@@ -252,8 +252,10 @@ export default function MangaPage() {
                     <img
                       src={manga.cover_url}
                       alt={manga.title}
-                      loading={index === 0 ? "eager" : "lazy"}
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      loading="eager"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="block h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400">
@@ -331,8 +333,10 @@ export default function MangaPage() {
                     <img
                       src={manga.cover_url}
                       alt={manga.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      loading="eager"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="block h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400">
@@ -517,8 +521,10 @@ export default function MangaPage() {
                     <img
                       src={manga.cover_url}
                       alt={manga.title}
-                      loading="lazy"
-                      className="h-full w-full object-cover transition duration-700 group-hover:scale-105"
+                      loading="eager"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="block h-full w-full object-cover transition duration-700 group-hover:scale-105"
                     />
                   ) : (
                     <div className="flex h-full items-center justify-center text-sm text-gray-400">
