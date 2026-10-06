@@ -26,7 +26,9 @@ export async function getMangaInfo(input: string) {
   const mangaId = getMangaId(input);
 
   if (!mangaId) {
-    throw new Error("رابط MangaDex أو Manga ID غير صحيح");
+    throw new Error(
+      "رابط MangaDex أو Manga ID غير صحيح"
+    );
   }
 
   const response = await fetch(
@@ -37,28 +39,23 @@ export async function getMangaInfo(input: string) {
   );
 
   if (!response.ok) {
-    throw new Error(`MangaDex API error: ${response.status}`);
+    throw new Error(
+      `MangaDex API error: ${response.status}`
+    );
   }
 
   const result = await response.json();
   const mangaData = result.data;
 
-  /*
-   * استخراج علاقة الغلاف cover_art
-   */
-  const coverRelationship = mangaData?.relationships?.find(
-    (relationship: any) => relationship.type === "cover_art"
-  );
+  const coverRelationship =
+    mangaData?.relationships?.find(
+      (relationship: any) =>
+        relationship.type === "cover_art"
+    );
 
-  /*
-   * استخراج اسم ملف الغلاف
-   */
   const fileName =
     coverRelationship?.attributes?.fileName ?? null;
 
-  /*
-   * بناء رابط الغلاف
-   */
   const coverUrl = fileName
     ? `${MANGADEX_UPLOADS}/covers/${mangaId}/${fileName}`
     : null;
@@ -158,8 +155,6 @@ export async function getMangaChapters(
 
 /*
  * جلب الفصول من جميع اللغات
- *
- * نستخدمها فقط إذا لم نجد العربية.
  */
 export async function getMangaChaptersAllLanguages(
   mangaId: string,
@@ -240,21 +235,10 @@ export async function getMangaChaptersAllLanguages(
 
 /*
  * اختيار اللغة تلقائيًا
- *
- * الأولوية:
- *
- * 1. العربية
- * 2. إذا لم توجد العربية:
- *    نبحث عن اللغات المتوفرة
- *    ونختار اللغة التي لديها أكبر عدد
- *    من الفصول في النتيجة.
  */
 export async function getMangaPreferredLanguage(
   mangaId: string
 ) {
-  /*
-   * أولاً: البحث عن العربية
-   */
   const arabic =
     await getMangaChapters(
       mangaId,
@@ -270,10 +254,6 @@ export async function getMangaPreferredLanguage(
     };
   }
 
-  /*
-   * العربية غير موجودة.
-   * نبحث عن اللغات الأخرى.
-   */
   const allLanguages =
     await getMangaChaptersAllLanguages(
       mangaId,
@@ -290,9 +270,6 @@ export async function getMangaPreferredLanguage(
     };
   }
 
-  /*
-   * حساب عدد الفصول لكل لغة.
-   */
   const languageCounts: Record<
     string,
     number
@@ -313,10 +290,6 @@ export async function getMangaPreferredLanguage(
         0) + 1;
   }
 
-  /*
-   * اختيار اللغة التي لديها
-   * أكبر عدد من الفصول.
-   */
   const preferredLanguage =
     Object.entries(languageCounts).sort(
       (a, b) => b[1] - a[1]
@@ -334,10 +307,6 @@ export async function getMangaPreferredLanguage(
     count,
   ] = preferredLanguage;
 
-  /*
-   * نحاول معرفة العدد الحقيقي
-   * للفصول في اللغة المختارة.
-   */
   const languageChapters =
     await getMangaChapters(
       mangaId,
@@ -356,7 +325,7 @@ export async function getMangaPreferredLanguage(
 }
 
 /*
- * جلب معلومات فصل واحد من MangaDex
+ * جلب معلومات فصل واحد
  */
 export async function getChapterInfo(
   chapterId: string
@@ -400,7 +369,7 @@ export async function getChapterInfo(
 }
 
 /*
- * جلب روابط صفحات الفصل من MangaDex
+ * جلب روابط صفحات الفصل
  */
 export async function getChapterPages(
   chapterId: string
