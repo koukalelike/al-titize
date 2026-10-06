@@ -116,21 +116,10 @@ export default function MangaDexImportPage() {
     try {
       setLoading(true);
 
-      /*
-       * 1. جلب معلومات المانجا
-       * الغلاف + العنوان + الوصف...
-       */
       const result = await getMangaInfo(input);
 
       setManga(result);
 
-      /*
-       * 2. اختيار لغة الفصول تلقائيًا
-       *
-       * العربية أولاً.
-       * إذا لم توجد العربية:
-       * يتم اختيار لغة أخرى متوفرة.
-       */
       const preferred =
         await getMangaPreferredLanguage(
           result.id
@@ -147,7 +136,6 @@ export default function MangaDexImportPage() {
       setLanguage(
         preferred.language
       );
-
     } catch (err) {
       setError(
         err instanceof Error
@@ -224,7 +212,6 @@ export default function MangaDexImportPage() {
 
       setTotalChapters(realTotal);
       setShowChapterSettings(true);
-
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -298,7 +285,6 @@ export default function MangaDexImportPage() {
           `تمت معالجة الدفعة: ${result.imported} فصل مستورد، ${result.skipped} فصل موجود مسبقًا، ${result.failed} فصل فشل. إجمالي الصفحات الجديدة: ${result.totalPages}`
         );
       }
-
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -404,9 +390,6 @@ export default function MangaDexImportPage() {
 
       setLoadingChapters(false);
 
-      /*
-       * استيراد الدفعة تلقائيًا
-       */
       await importBatch(
         result.chapters
       );
@@ -424,7 +407,6 @@ export default function MangaDexImportPage() {
       setWaitingForNextBatch(
         true
       );
-
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -516,9 +498,6 @@ export default function MangaDexImportPage() {
         false
       );
 
-      /*
-       * استيراد الدفعة تلقائيًا
-       */
       await importBatch(
         result.chapters
       );
@@ -537,7 +516,6 @@ export default function MangaDexImportPage() {
       setWaitingForNextBatch(
         true
       );
-
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -581,15 +559,16 @@ export default function MangaDexImportPage() {
     )[0] ||
     "لا يوجد وصف";
 
-  const coverFile =
-    manga?.data?.relationships?.find(
-      (item: any) =>
-        item.type === "cover_art"
-    )?.attributes?.fileName;
-
-  const coverUrl = coverFile
-    ? `https://uploads.mangadex.org/covers/${manga.id}/${coverFile}`
-    : null;
+  /*
+   * استخدام رابط الغلاف الذي يتم
+   * تجهيزه داخل lib/mangadex.ts.
+   *
+   * هذا مهم لأن lib/mangadex.ts
+   * يستخدم رابط MangaDex بالحجم 512px.
+   */
+  const coverUrl =
+    manga?.coverUrl ||
+    null;
 
   const progress =
     targetChapters > 0
@@ -634,8 +613,6 @@ export default function MangaDexImportPage() {
           وصفحاتها تلقائيًا إلى AL TITIZE.
         </p>
 
-        {/* البحث عن المانجا */}
-
         <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
 
           <label className="mb-2 block text-sm font-bold text-gray-700">
@@ -673,8 +650,6 @@ export default function MangaDexImportPage() {
 
         </div>
 
-        {/* معلومات المانجا */}
-
         {manga && (
           <>
 
@@ -689,6 +664,7 @@ export default function MangaDexImportPage() {
                       alt={String(
                         title
                       )}
+                      loading="eager"
                       className="w-full rounded-xl object-cover"
                     />
                   ) : (
@@ -736,8 +712,6 @@ export default function MangaDexImportPage() {
 
               </div>
 
-              {/* زر جلب الفصول */}
-
               <div className="border-t border-gray-200 bg-gray-50 p-5">
 
                 <button
@@ -760,23 +734,17 @@ export default function MangaDexImportPage() {
 
             </div>
 
-            {/* الخطأ */}
-
             {chapterError && (
               <div className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700">
                 {chapterError}
               </div>
             )}
 
-            {/* نجاح الاستيراد */}
-
             {importSuccess && (
               <div className="mt-4 rounded-xl border border-green-200 bg-green-50 p-4 text-sm font-bold text-green-700">
                 {importSuccess}
               </div>
             )}
-
-            {/* عدد الفصول الحقيقي */}
 
             {showChapterSettings &&
               totalChapters > 0 && (
@@ -796,8 +764,6 @@ export default function MangaDexImportPage() {
 
                 </div>
               )}
-
-            {/* إعدادات الفصول */}
 
             {showChapterSettings && (
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
@@ -921,8 +887,6 @@ export default function MangaDexImportPage() {
 
               </div>
             )}
-
-            {/* حالة الجلب والاستيراد */}
 
             {(loadingChapters ||
               importingBatch ||
@@ -1051,8 +1015,6 @@ export default function MangaDexImportPage() {
                   الحد الأقصى لكل طلب: 100 فصل
                 </p>
 
-                {/* قرار الدفعة التالية */}
-
                 {waitingForNextBatch &&
                   loadedChapters <
                     targetChapters && (
@@ -1112,8 +1074,6 @@ export default function MangaDexImportPage() {
 
               </div>
             )}
-
-            {/* قائمة الفصول */}
 
             {chapters.length > 0 && (
               <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
