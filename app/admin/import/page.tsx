@@ -6,7 +6,6 @@ import {
   getMangaChapters,
   getMangaPreferredLanguage,
 } from "@/lib/mangadex";
-import { importChaptersBatchAction } from "./actions";
 
 type Chapter = {
   id: string;
@@ -18,6 +17,53 @@ type Chapter = {
 };
 
 type ImportMode = "all" | "number";
+
+type ImportProgressEvent = {
+  event?: string;
+  type?: string;
+  message?: string;
+
+  chapterNumber?: number | null;
+  chapterIndex?: number;
+  totalChapters?: number;
+
+  pageNumber?: number;
+  totalPages?: number;
+
+  imported?: number;
+  skipped?: number;
+  failed?: number;
+  totalImportedPages?: number;
+
+  downloadedBytes?: number;
+  uploadedBytes?: number;
+  totalBytes?: number;
+
+  error?: string;
+};
+
+type BatchImportResponse = {
+  success: boolean;
+  mangaId?: number;
+  imported: number;
+  skipped: number;
+  failed: number;
+  totalPages: number;
+  downloadedBytes: number;
+  uploadedBytes: number;
+  totalBytes: number;
+  results: {
+    chapterId: string;
+    chapterNumber: number | null;
+    pages: number;
+    success: boolean;
+    skipped: boolean;
+    error?: string;
+    downloadedBytes?: number;
+    uploadedBytes?: number;
+  }[];
+  error?: string;
+};
 
 export default function MangaDexImportPage() {
   const [input, setInput] = useState("");
@@ -33,9 +79,9 @@ export default function MangaDexImportPage() {
     useState("");
 
   const [manga, setManga] = useState<any>(null);
-  const [chapters, setChapters] = useState<Chapter[]>(
-    []
-  );
+
+  const [chapters, setChapters] =
+    useState<Chapter[]>([]);
 
   const [language, setLanguage] = useState("");
 
@@ -57,9 +103,11 @@ export default function MangaDexImportPage() {
   const [currentBatch, setCurrentBatch] =
     useState(0);
 
-  const [waiting, setWaiting] = useState(false);
+  const [waiting, setWaiting] =
+    useState(false);
 
-  const [countdown, setCountdown] = useState(0);
+  const [countdown, setCountdown] =
+    useState(0);
 
   const [showChapterSettings, setShowChapterSettings] =
     useState(false);
@@ -81,6 +129,175 @@ export default function MangaDexImportPage() {
 
   const [totalImportedPages, setTotalImportedPages] =
     useState(0);
+
+  const [currentChapterNumber, setCurrentChapterNumber] =
+    useState<number | null>(null);
+
+  const [currentPage, setCurrentPage] =
+    useState(0);
+
+  const [currentTotalPages, setCurrentTotalPages] =
+    useState(0);
+
+  const [downloadedBytes, setDownloadedBytes] =
+    useState(0);
+
+  const [uploadedBytes, setUploadedBytes] =
+    useState(0);
+
+  const [totalBytes, setTotalBytes] =
+    useState(0);
+
+  const [lastOperation, setLastOperation] =
+    useState("");
+
+  const [liveLog, setLiveLog] = useState<string[]>([]);
+
+  function bytesToMB(bytes: number) {
+    return bytes / 1024 / 1024;
+  }
+
+  function formatBytes(bytes: number) {
+    if (!bytes) {
+      return "0 MB";
+    }
+
+    if (bytes < 1024 * 1024) {
+      return `${(bytes / 1024).toFixed(2)} KB`;
+    }
+
+    if (bytes < 1024 * 1024 * 1024) {
+      return `${bytesToMB(bytes).toFixed(2)} MB`;
+    }
+
+    return `${(
+      bytes /
+      1024 /
+      1024 /
+      1024
+    ).toFixed(2)} GB`;
+  }
+
+  function addLiveLog(message: string) {
+    if (!message) {
+      return;
+    }
+
+    setLastOperation(message);
+
+    setLiveLog((previous) => {
+      const next = [
+        ...previous,
+        message,
+      ];
+
+      return next.slice(-60);
+    });
+  }
+
+  function applyProgress(
+    progress: ImportProgressEvent
+  ) {
+    if (progress.message) {
+      addLiveLog(progress.message);
+    }
+
+    if (
+      typeof progress.chapterNumber ===
+      "number"
+    ) {
+      setCurrentChapterNumber(
+        progress.chapterNumber
+      );
+    }
+
+    if (
+      typeof progress.pageNumber ===
+      "number"
+    ) {
+      setCurrentPage(
+        progress.pageNumber
+      );
+    }
+
+    if (
+      typeof progress.totalPages ===
+      "number"
+    ) {
+      setCurrentTotalPages(
+        progress.totalPages
+      );
+    }
+
+    if (
+      typeof progress.imported ===
+      "number"
+    ) {
+      setImportedCount(
+        progress.imported
+      );
+    }
+
+    if (
+      typeof progress.skipped ===
+      "number"
+    ) {
+      setSkippedCount(
+        progress.skipped
+      );
+    }
+
+    if (
+      typeof progress.failed ===
+      "number"
+    ) {
+      setFailedCount(
+        progress.failed
+      );
+    }
+
+    if (
+      typeof progress.totalImportedPages ===
+      "number"
+    ) {
+      setTotalImportedPages(
+        progress.totalImportedPages
+      );
+    }
+
+    if (
+      typeof progress.downloadedBytes ===
+      "number"
+    ) {
+      setDownloadedBytes(
+        progress.downloadedBytes
+      );
+    }
+
+    if (
+      typeof progress.uploadedBytes ===
+      "number"
+    ) {
+      setUploadedBytes(
+        progress.uploadedBytes
+      );
+    }
+
+    if (
+      typeof progress.totalBytes ===
+      "number"
+    ) {
+      setTotalBytes(
+        progress.totalBytes
+      );
+    }
+
+    if (progress.error) {
+      setChapterError(
+        progress.error
+      );
+    }
+  }
 
   async function handleSearch() {
     setError("");
@@ -108,15 +325,29 @@ export default function MangaDexImportPage() {
     setFailedCount(0);
     setTotalImportedPages(0);
 
+    setCurrentChapterNumber(null);
+    setCurrentPage(0);
+    setCurrentTotalPages(0);
+
+    setDownloadedBytes(0);
+    setUploadedBytes(0);
+    setTotalBytes(0);
+
+    setLastOperation("");
+    setLiveLog([]);
+
     if (!input.trim()) {
-      setError("ضع رابط MangaDex أولاً");
+      setError(
+        "ضع رابط MangaDex أولاً"
+      );
       return;
     }
 
     try {
       setLoading(true);
 
-      const result = await getMangaInfo(input);
+      const result =
+        await getMangaInfo(input);
 
       setManga(result);
 
@@ -162,6 +393,7 @@ export default function MangaDexImportPage() {
       seconds--
     ) {
       setCountdown(seconds);
+
       await sleep(1000);
     }
 
@@ -190,16 +422,16 @@ export default function MangaDexImportPage() {
     try {
       setLoadingChapters(true);
 
-      const result = await getMangaChapters(
-        manga.id,
-        language,
-        1,
-        0
-      );
+      const result =
+        await getMangaChapters(
+          manga.id,
+          language,
+          1,
+          0
+        );
 
-      const realTotal = Number(
-        result.total || 0
-      );
+      const realTotal =
+        Number(result.total || 0);
 
       if (realTotal <= 0) {
         setChapterError(
@@ -207,11 +439,17 @@ export default function MangaDexImportPage() {
         );
 
         setShowChapterSettings(false);
+
         return;
       }
 
-      setTotalChapters(realTotal);
-      setShowChapterSettings(true);
+      setTotalChapters(
+        realTotal
+      );
+
+      setShowChapterSettings(
+        true
+      );
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -244,55 +482,306 @@ export default function MangaDexImportPage() {
     setImportSuccess("");
     setImportingBatch(true);
 
+    setCurrentPage(0);
+    setCurrentTotalPages(0);
+    setCurrentChapterNumber(null);
+
     try {
-      const result =
-        await importChaptersBatchAction(
-          manga.id,
-          batchChapters
+      addLiveLog(
+        `🚀 بدء استيراد ${batchChapters.length} فصل...`
+      );
+
+      const response =
+        await fetch(
+          "/api/admin/import",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+            body: JSON.stringify({
+              mangaDexId:
+                manga.id.toString(),
+              chapters:
+                batchChapters,
+            }),
+          }
         );
 
-      setImportedCount(
-        (previous) =>
-          previous + result.imported
-      );
+      if (!response.ok) {
+        let errorMessage =
+          "فشل الاتصال بخدمة الاستيراد.";
 
-      setSkippedCount(
-        (previous) =>
-          previous + result.skipped
-      );
+        try {
+          const data =
+            await response.json();
 
-      setFailedCount(
-        (previous) =>
-          previous + result.failed
-      );
+          if (data?.error) {
+            errorMessage =
+              data.error;
+          }
+        } catch {
+          // تجاهل خطأ قراءة JSON
+        }
 
-      setTotalImportedPages(
-        (previous) =>
-          previous + result.totalPages
-      );
-
-      if (result.error) {
-        setChapterError(
-          result.error
+        throw new Error(
+          errorMessage
         );
+      }
+
+      if (!response.body) {
+        throw new Error(
+          "الخادم لم يُرجع stream للاستيراد."
+        );
+      }
+
+      const reader =
+        response.body.getReader();
+
+      const decoder =
+        new TextDecoder();
+
+      let buffer = "";
+
+      let finalResult:
+        | BatchImportResponse
+        | null = null;
+
+      while (true) {
+        const {
+          value,
+          done,
+        } = await reader.read();
+
+        if (done) {
+          break;
+        }
+
+        buffer +=
+          decoder.decode(
+            value,
+            {
+              stream: true,
+            }
+          );
+
+        const lines =
+          buffer.split("\n");
+
+        buffer =
+          lines.pop() || "";
+
+        for (
+          const line of lines
+        ) {
+          const trimmed =
+            line.trim();
+
+          if (!trimmed) {
+            continue;
+          }
+
+          let event:
+            | ImportProgressEvent
+            | {
+                event?: string;
+                success?: boolean;
+                result?: BatchImportResponse;
+                error?: string;
+                message?: string;
+              };
+
+          try {
+            event =
+              JSON.parse(
+                trimmed
+              );
+          } catch {
+            continue;
+          }
+
+          if (
+            event.event ===
+            "progress"
+          ) {
+            applyProgress(
+              event as ImportProgressEvent
+            );
+
+            continue;
+          }
+
+          if (
+            event.event ===
+            "connection"
+          ) {
+            addLiveLog(
+              event.message ||
+                "✅ تم الاتصال."
+            );
+
+            continue;
+          }
+
+          if (
+            event.event ===
+            "result"
+          ) {
+            const resultEvent =
+              event as {
+                event?: string;
+                success?: boolean;
+                result?: BatchImportResponse;
+              };
+
+            finalResult =
+              resultEvent.result ||
+              null;
+
+            if (finalResult) {
+              setImportedCount(
+                finalResult.imported
+              );
+
+              setSkippedCount(
+                finalResult.skipped
+              );
+
+              setFailedCount(
+                finalResult.failed
+              );
+
+              setTotalImportedPages(
+                finalResult.totalPages
+              );
+
+              setDownloadedBytes(
+                finalResult.downloadedBytes
+              );
+
+              setUploadedBytes(
+                finalResult.uploadedBytes
+              );
+
+              setTotalBytes(
+                finalResult.totalBytes
+              );
+
+              if (
+                finalResult.error
+              ) {
+                setChapterError(
+                  finalResult.error
+                );
+              }
+            }
+
+            continue;
+          }
+
+          if (
+            event.event ===
+            "error"
+          ) {
+            const errorEvent =
+              event as {
+                event?: string;
+                error?: string;
+                message?: string;
+              };
+
+            throw new Error(
+              errorEvent.error ||
+                errorEvent.message ||
+                "حدث خطأ أثناء الاستيراد."
+            );
+          }
+
+          if (
+            event.event ===
+            "complete"
+          ) {
+            addLiveLog(
+              event.message ||
+                "✅ انتهت عملية الاستيراد."
+            );
+          }
+        }
       }
 
       if (
-        result.imported > 0 ||
-        result.skipped > 0
+        buffer.trim()
       ) {
-        setImportSuccess(
-          `تمت معالجة الدفعة: ${result.imported} فصل مستورد، ${result.skipped} فصل موجود مسبقًا، ${result.failed} فصل فشل. إجمالي الصفحات الجديدة: ${result.totalPages}`
-        );
+        try {
+          const lastEvent =
+            JSON.parse(
+              buffer.trim()
+            );
+
+          if (
+            lastEvent?.event ===
+            "progress"
+          ) {
+            applyProgress(
+              lastEvent
+            );
+          }
+        } catch {
+          // تجاهل السطر الأخير غير المكتمل
+        }
+      }
+
+      if (finalResult) {
+        if (
+          finalResult.error
+        ) {
+          setChapterError(
+            finalResult.error
+          );
+        }
+
+        if (
+          finalResult.imported >
+            0 ||
+          finalResult.skipped >
+            0
+        ) {
+          setImportSuccess(
+            `تمت معالجة الدفعة: ${finalResult.imported} فصل مستورد، ${finalResult.skipped} فصل موجود مسبقًا، ${finalResult.failed} فصل فشل. إجمالي الصفحات الجديدة: ${finalResult.totalPages}`
+          );
+        }
+
+        if (
+          finalResult.failed ===
+          0
+        ) {
+          addLiveLog(
+            "🎉 تمت معالجة الدفعة بنجاح."
+          );
+        } else {
+          addLiveLog(
+            "⚠️ انتهت الدفعة مع وجود أخطاء."
+          );
+        }
       }
     } catch (err) {
-      setChapterError(
+      const message =
         err instanceof Error
           ? err.message
-          : "حدث خطأ أثناء استيراد الدفعة."
+          : "حدث خطأ أثناء استيراد الدفعة.";
+
+      setChapterError(
+        message
+      );
+
+      addLiveLog(
+        `❌ ${message}`
       );
     } finally {
-      setImportingBatch(false);
+      setImportingBatch(
+        false
+      );
     }
   }
 
@@ -325,10 +814,22 @@ export default function MangaDexImportPage() {
     setFailedCount(0);
     setTotalImportedPages(0);
 
-    const requestedNumber = Math.max(
-      1,
-      Number(chapterLimit) || 1
-    );
+    setCurrentChapterNumber(null);
+    setCurrentPage(0);
+    setCurrentTotalPages(0);
+
+    setDownloadedBytes(0);
+    setUploadedBytes(0);
+    setTotalBytes(0);
+
+    setLastOperation("");
+    setLiveLog([]);
+
+    const requestedNumber =
+      Math.max(
+        1,
+        Number(chapterLimit) || 1
+      );
 
     const finalTarget =
       importMode === "all"
@@ -350,12 +851,15 @@ export default function MangaDexImportPage() {
     );
 
     try {
-      setLoadingChapters(true);
-
-      const batchSize = Math.min(
-        100,
-        finalTarget
+      setLoadingChapters(
+        true
       );
+
+      const batchSize =
+        Math.min(
+          100,
+          finalTarget
+        );
 
       const result =
         await getMangaChapters(
@@ -367,7 +871,8 @@ export default function MangaDexImportPage() {
 
       if (
         !result.chapters ||
-        result.chapters.length === 0
+        result.chapters.length ===
+          0
       ) {
         setChapterError(
           "لم يتم العثور على فصول."
@@ -388,14 +893,17 @@ export default function MangaDexImportPage() {
 
       setCurrentBatch(1);
 
-      setLoadingChapters(false);
+      setLoadingChapters(
+        false
+      );
 
       await importBatch(
         result.chapters
       );
 
       if (
-        loaded >= finalTarget
+        loaded >=
+        finalTarget
       ) {
         setImportSuccess(
           "🎉 اكتمل جلب واستيراد جميع الفصول المطلوبة."
@@ -414,7 +922,9 @@ export default function MangaDexImportPage() {
           : "حدث خطأ أثناء جلب الفصول"
       );
 
-      setLoadingChapters(false);
+      setLoadingChapters(
+        false
+      );
     }
   }
 
@@ -450,10 +960,11 @@ export default function MangaDexImportPage() {
         targetChapters -
         loadedChapters;
 
-      const batchSize = Math.min(
-        100,
-        remaining
-      );
+      const batchSize =
+        Math.min(
+          100,
+          remaining
+        );
 
       const result =
         await getMangaChapters(
@@ -465,7 +976,8 @@ export default function MangaDexImportPage() {
 
       if (
         !result.chapters ||
-        result.chapters.length === 0
+        result.chapters.length ===
+          0
       ) {
         setChapterError(
           "لم يتم العثور على دفعة جديدة."
@@ -555,17 +1067,11 @@ export default function MangaDexImportPage() {
   const description =
     attributes?.description?.en ||
     Object.values(
-      attributes?.description || {}
+      attributes?.description ||
+        {}
     )[0] ||
     "لا يوجد وصف";
 
-  /*
-   * استخدام رابط الغلاف الذي يتم
-   * تجهيزه داخل lib/mangadex.ts.
-   *
-   * هذا مهم لأن lib/mangadex.ts
-   * يستخدم رابط MangaDex بالحجم 512px.
-   */
   const coverUrl =
     manga?.coverUrl ||
     null;
@@ -577,6 +1083,18 @@ export default function MangaDexImportPage() {
           Math.round(
             (loadedChapters /
               targetChapters) *
+              100
+          )
+        )
+      : 0;
+
+  const pageProgress =
+    currentTotalPages > 0
+      ? Math.min(
+          100,
+          Math.round(
+            (currentPage /
+              currentTotalPages) *
               100
           )
         )
@@ -603,7 +1121,6 @@ export default function MangaDexImportPage() {
       className="min-h-screen bg-white px-4 py-10"
     >
       <div className="mx-auto max-w-5xl">
-
         <h1 className="text-3xl font-bold text-black">
           استيراد من MangaDex
         </h1>
@@ -614,7 +1131,6 @@ export default function MangaDexImportPage() {
         </p>
 
         <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-
           <label className="mb-2 block text-sm font-bold text-gray-700">
             رابط MangaDex
           </label>
@@ -647,16 +1163,12 @@ export default function MangaDexImportPage() {
               {error}
             </div>
           )}
-
         </div>
 
         {manga && (
           <>
-
             <div className="mt-8 overflow-hidden rounded-2xl border border-gray-200 bg-white">
-
               <div className="grid gap-6 p-6 sm:grid-cols-[180px_1fr]">
-
                 <div>
                   {coverUrl ? (
                     <img
@@ -665,7 +1177,9 @@ export default function MangaDexImportPage() {
                         title
                       )}
                       loading="eager"
-                      className="w-full rounded-xl object-cover"
+                      decoding="async"
+                      referrerPolicy="no-referrer"
+                      className="block w-full rounded-xl object-cover"
                     />
                   ) : (
                     <div className="flex aspect-[2/3] items-center justify-center rounded-xl bg-gray-100 text-sm text-gray-500">
@@ -675,7 +1189,6 @@ export default function MangaDexImportPage() {
                 </div>
 
                 <div>
-
                   <p className="text-xs font-bold text-gray-500">
                     المانجا
                   </p>
@@ -695,25 +1208,24 @@ export default function MangaDexImportPage() {
                     {languageName}
                   </div>
 
-                  {language === "ar" && (
+                  {language ===
+                    "ar" && (
                     <p className="mt-2 text-xs font-bold text-green-600">
                       ✓ تم العثور على فصول عربية
                     </p>
                   )}
 
                   {language &&
-                    language !== "ar" && (
+                    language !==
+                      "ar" && (
                       <p className="mt-2 text-xs font-bold text-orange-600">
                         لم توجد فصول عربية، تم اختيار اللغة المتوفرة تلقائيًا.
                       </p>
                     )}
-
                 </div>
-
               </div>
 
               <div className="border-t border-gray-200 bg-gray-50 p-5">
-
                 <button
                   onClick={
                     handleGetChapters
@@ -729,9 +1241,7 @@ export default function MangaDexImportPage() {
                     ? "جاري البحث عن الفصول..."
                     : "جلب الفصول"}
                 </button>
-
               </div>
-
             </div>
 
             {chapterError && (
@@ -749,7 +1259,6 @@ export default function MangaDexImportPage() {
             {showChapterSettings &&
               totalChapters > 0 && (
                 <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6 text-center">
-
                   <p className="text-sm font-bold text-green-700">
                     📚 تم العثور على عدد الفصول
                   </p>
@@ -761,52 +1270,46 @@ export default function MangaDexImportPage() {
                   <p className="mt-2 text-sm text-green-700">
                     فصل متوفر في MangaDex
                   </p>
-
                 </div>
               )}
 
             {showChapterSettings && (
               <div className="mt-6 rounded-2xl border border-gray-200 bg-gray-50 p-5">
-
                 <h2 className="text-xl font-bold text-black">
                   إعدادات الفصول
                 </h2>
 
                 <div className="mt-5">
+                  <label className="mb-2 block text-sm font-bold text-gray-700">
+                    لغة الفصول
+                  </label>
 
-                  <div>
-
-                    <label className="mb-2 block text-sm font-bold text-gray-700">
-                      لغة الفصول
-                    </label>
-
-                    <div className="rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700">
-                      {languageName}
-                    </div>
-
-                    <p className="mt-2 text-xs text-gray-500">
-                      تم اختيار اللغة تلقائيًا: العربية أولًا، ثم لغة أخرى عند عدم توفر العربية.
-                    </p>
-
+                  <div className="rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700">
+                    {languageName}
                   </div>
 
+                  <p className="mt-2 text-xs text-gray-500">
+                    تم اختيار اللغة تلقائيًا: العربية أولًا، ثم لغة أخرى عند عدم توفر العربية.
+                  </p>
                 </div>
 
                 <div className="mt-5">
-
                   <label className="mb-2 block text-sm font-bold text-gray-700">
                     عدد الفصول
                   </label>
 
                   <select
-                    value={importMode}
+                    value={
+                      importMode
+                    }
                     disabled={
                       loadingChapters ||
                       importingBatch
                     }
                     onChange={(e) =>
                       setImportMode(
-                        e.target.value as ImportMode
+                        e.target
+                          .value as ImportMode
                       )
                     }
                     className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black disabled:opacity-50"
@@ -819,12 +1322,11 @@ export default function MangaDexImportPage() {
                       كل الفصول
                     </option>
                   </select>
-
                 </div>
 
-                {importMode === "number" && (
+                {importMode ===
+                  "number" && (
                   <div className="mt-4">
-
                     <label className="mb-2 block text-sm font-bold text-gray-700">
                       كم فصل تريد؟
                     </label>
@@ -844,7 +1346,8 @@ export default function MangaDexImportPage() {
                       }
                       onChange={(e) =>
                         setChapterLimit(
-                          e.target.value
+                          e.target
+                            .value
                         )
                       }
                       className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 outline-none focus:border-black disabled:opacity-50"
@@ -852,9 +1355,10 @@ export default function MangaDexImportPage() {
 
                     <p className="mt-2 text-xs text-gray-500">
                       أقصى عدد متوفر:{" "}
-                      {totalChapters}
+                      {
+                        totalChapters
+                      }
                     </p>
-
                   </div>
                 )}
 
@@ -881,10 +1385,9 @@ export default function MangaDexImportPage() {
                   {loadingChapters
                     ? "جاري جلب الفصول..."
                     : importingBatch
-                    ? "📥 جاري استيراد الفصول تلقائيًا..."
+                    ? "📥 جاري استيراد الفصول والصفحات..."
                     : "جلب واستيراد هذه الفصول"}
                 </button>
-
               </div>
             )}
 
@@ -893,13 +1396,9 @@ export default function MangaDexImportPage() {
               waitingForNextBatch ||
               loadedChapters > 0) && (
               <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-5">
-
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-
                   <div>
-
                     <p className="font-bold text-blue-900">
-
                       {waiting ? (
                         "⏳ انتظار قبل الطلب التالي"
                       ) : importingBatch ? (
@@ -914,65 +1413,98 @@ export default function MangaDexImportPage() {
                       ) : (
                         "📚 حالة الاستيراد"
                       )}
-
                     </p>
 
                     <p className="mt-1 text-sm text-blue-700">
-
                       تم جلب{" "}
-
                       <strong>
                         {loadedChapters}
                       </strong>{" "}
-
                       من{" "}
-
                       <strong>
                         {targetChapters}
                       </strong>{" "}
-
                       فصل
-
                     </p>
-
                   </div>
 
                   {waiting && (
                     <div className="text-center">
-
                       <div className="text-3xl font-black text-blue-900">
-                        {countdown}
+                        {
+                          countdown
+                        }
                       </div>
 
                       <div className="text-xs text-blue-700">
                         ثوانٍ
                       </div>
-
                     </div>
                   )}
-
                 </div>
 
                 <div className="mt-4 h-3 overflow-hidden rounded-full bg-blue-100">
-
                   <div
                     className="h-full rounded-full bg-blue-600 transition-all duration-500"
                     style={{
                       width: `${progress}%`,
                     }}
                   />
-
                 </div>
 
-                <div className="mt-4 grid gap-3 sm:grid-cols-4">
+                {importingBatch &&
+                  currentTotalPages >
+                    0 && (
+                    <div className="mt-4 rounded-xl bg-white p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div>
+                          <p className="text-sm font-bold text-gray-900">
+                            الفصل{" "}
+                            {currentChapterNumber ??
+                              "—"}
+                          </p>
 
+                          <p className="mt-1 text-xs text-gray-500">
+                            الصفحة{" "}
+                            {
+                              currentPage
+                            }{" "}
+                            من{" "}
+                            {
+                              currentTotalPages
+                            }
+                          </p>
+                        </div>
+
+                        <strong className="text-lg text-blue-600">
+                          {
+                            pageProgress
+                          }
+                          %
+                        </strong>
+                      </div>
+
+                      <div className="mt-3 h-2 overflow-hidden rounded-full bg-gray-100">
+                        <div
+                          className="h-full rounded-full bg-blue-600 transition-all duration-300"
+                          style={{
+                            width: `${pageProgress}%`,
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-4">
                   <div className="rounded-xl bg-white p-3 text-center">
                     <p className="text-xs text-gray-500">
                       مستورد
                     </p>
 
                     <p className="mt-1 text-xl font-black text-green-600">
-                      {importedCount}
+                      {
+                        importedCount
+                      }
                     </p>
                   </div>
 
@@ -982,7 +1514,9 @@ export default function MangaDexImportPage() {
                     </p>
 
                     <p className="mt-1 text-xl font-black text-gray-600">
-                      {skippedCount}
+                      {
+                        skippedCount
+                      }
                     </p>
                   </div>
 
@@ -992,7 +1526,9 @@ export default function MangaDexImportPage() {
                     </p>
 
                     <p className="mt-1 text-xl font-black text-red-600">
-                      {failedCount}
+                      {
+                        failedCount
+                      }
                     </p>
                   </div>
 
@@ -1002,15 +1538,97 @@ export default function MangaDexImportPage() {
                     </p>
 
                     <p className="mt-1 text-xl font-black text-blue-600">
-                      {totalImportedPages}
+                      {
+                        totalImportedPages
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                  <div className="rounded-xl bg-white p-3 text-center">
+                    <p className="text-xs text-gray-500">
+                      📥 التحميل
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-gray-900">
+                      {formatBytes(
+                        downloadedBytes
+                      )}
                     </p>
                   </div>
 
+                  <div className="rounded-xl bg-white p-3 text-center">
+                    <p className="text-xs text-gray-500">
+                      📤 الرفع
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-gray-900">
+                      {formatBytes(
+                        uploadedBytes
+                      )}
+                    </p>
+                  </div>
+
+                  <div className="rounded-xl bg-white p-3 text-center">
+                    <p className="text-xs text-gray-500">
+                      🌐 إجمالي الحركة
+                    </p>
+
+                    <p className="mt-1 text-lg font-black text-gray-900">
+                      {formatBytes(
+                        totalBytes
+                      )}
+                    </p>
+                  </div>
                 </div>
+
+                {lastOperation && (
+                  <div className="mt-4 rounded-xl border border-blue-100 bg-white p-4">
+                    <p className="text-xs font-bold text-gray-400">
+                      آخر عملية
+                    </p>
+
+                    <p className="mt-2 text-sm font-bold text-gray-900">
+                      {
+                        lastOperation
+                      }
+                    </p>
+                  </div>
+                )}
+
+                {liveLog.length >
+                  0 && (
+                  <details className="mt-4 overflow-hidden rounded-xl border border-blue-100 bg-white">
+                    <summary className="cursor-pointer px-4 py-3 text-sm font-bold text-gray-700">
+                      📋 سجل الاستيراد الحي
+                    </summary>
+
+                    <div className="max-h-80 overflow-y-auto border-t border-gray-100 p-4">
+                      <div className="space-y-1 text-xs text-gray-600">
+                        {liveLog
+                          .map(
+                            (
+                              log,
+                              index
+                            ) => (
+                              <p
+                                key={`${index}-${log}`}
+                                className="rounded bg-gray-50 px-2 py-1"
+                              >
+                                {log}
+                              </p>
+                            )
+                          )}
+                      </div>
+                    </div>
+                  </details>
+                )}
 
                 <p className="mt-4 text-center text-xs text-blue-700">
                   الدفعة الحالية:{" "}
-                  {currentBatch || 1}
+                  {currentBatch ||
+                    1}
                   {" · "}
                   الحد الأقصى لكل طلب: 100 فصل
                 </p>
@@ -1019,12 +1637,15 @@ export default function MangaDexImportPage() {
                   loadedChapters <
                     targetChapters && (
                     <div className="mt-5 rounded-xl border border-blue-300 bg-white p-5 text-center">
-
                       <p className="text-lg font-black text-gray-900">
                         تم جلب واستيراد{" "}
-                        {loadedChapters}{" "}
+                        {
+                          loadedChapters
+                        }{" "}
                         من{" "}
-                        {targetChapters}
+                        {
+                          targetChapters
+                        }
                       </p>
 
                       <p className="mt-2 text-sm text-gray-600">
@@ -1036,7 +1657,6 @@ export default function MangaDexImportPage() {
                       </p>
 
                       <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-
                         <button
                           type="button"
                           onClick={
@@ -1066,32 +1686,29 @@ export default function MangaDexImportPage() {
                         >
                           لا، توقف
                         </button>
-
                       </div>
-
                     </div>
                   )}
-
               </div>
             )}
 
-            {chapters.length > 0 && (
+            {chapters.length >
+              0 && (
               <div className="mt-8 rounded-2xl border border-gray-200 bg-white p-5">
-
                 <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
                   <h2 className="text-xl font-bold text-black">
                     الفصول التي تمت معالجتها
                   </h2>
 
                   <span className="rounded-lg bg-gray-100 px-3 py-2 text-sm font-bold text-gray-700">
-                    {chapters.length} فصل
+                    {
+                      chapters.length
+                    }{" "}
+                    فصل
                   </span>
-
                 </div>
 
                 <div className="mt-5 space-y-3">
-
                   {chapters.map(
                     (
                       chapter,
@@ -1103,13 +1720,9 @@ export default function MangaDexImportPage() {
                         }
                         className="rounded-xl border border-gray-200 bg-gray-50 p-4"
                       >
-
                         <div className="flex flex-col gap-4">
-
                           <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-
                             <div>
-
                               <p className="font-bold text-black">
                                 الفصل{" "}
                                 {chapter.chapter ||
@@ -1124,7 +1737,6 @@ export default function MangaDexImportPage() {
                                   }
                                 </p>
                               )}
-
                             </div>
 
                             <div className="text-xs text-gray-500">
@@ -1135,27 +1747,20 @@ export default function MangaDexImportPage() {
                               }{" "}
                               صفحة
                             </div>
-
                           </div>
 
                           <div className="rounded-lg bg-green-50 px-4 py-3 text-center text-sm font-bold text-green-700">
                             📥 تتم معالجة هذا الفصل تلقائيًا ضمن الدفعة
                           </div>
-
                         </div>
-
                       </div>
                     )
                   )}
-
                 </div>
-
               </div>
             )}
-
           </>
         )}
-
       </div>
     </main>
   );
