@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Manga = {
@@ -231,12 +232,12 @@ export default function AccountPage() {
       {/* Header */}
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-2 px-3 py-3 sm:gap-4 sm:px-4 sm:py-4 md:px-6">
-          <a
+          <Link
             href="/manga"
             className="min-h-11 rounded-full border border-gray-200 bg-white px-4 py-2.5 text-xs font-bold transition active:scale-95 hover:bg-gray-50 sm:px-5 sm:text-sm"
           >
             ← العودة للمكتبة
-          </a>
+          </Link>
 
           <div className="min-w-0 text-center">
             <p className="text-[10px] font-bold tracking-[0.2em] text-gray-400 sm:text-xs sm:tracking-[0.25em]">
@@ -396,17 +397,17 @@ export default function AccountPage() {
                 أضف بعض المانجا إلى المفضلة لتظهر هنا.
               </p>
 
-              <a
+              <Link
                 href="/manga"
                 className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-black px-7 py-3 text-sm font-bold text-white transition active:scale-95 hover:bg-gray-800"
               >
                 استكشف المكتبة
-              </a>
+              </Link>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
               {favoriteManga.map((manga) => (
-                <a
+                <Link
                   key={manga.id}
                   href={`/manga/${manga.id}`}
                   className="group overflow-hidden rounded-[1.5rem] border border-gray-200 bg-white shadow-sm transition active:scale-[0.99] hover:-translate-y-1 hover:shadow-lg sm:rounded-[2rem]"
@@ -435,7 +436,7 @@ export default function AccountPage() {
                       {manga.status}
                     </p>
                   </div>
-                </a>
+                </Link>
               ))}
             </div>
           )}

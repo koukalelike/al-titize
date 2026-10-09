@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -124,12 +125,12 @@ export default function MangaDetailsPage() {
             {error}
           </p>
 
-          <a
+          <Link
             href="/manga"
             className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-black px-7 py-3 font-bold text-white transition hover:bg-gray-800 active:scale-95"
           >
             العودة إلى المكتبة
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -148,12 +149,12 @@ export default function MangaDetailsPage() {
             المانجا غير موجودة
           </h1>
 
-          <a
+          <Link
             href="/manga"
             className="mt-6 inline-flex min-h-12 items-center justify-center rounded-2xl bg-black px-7 py-3 font-bold text-white active:scale-95"
           >
             العودة إلى المكتبة
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -171,7 +172,7 @@ export default function MangaDetailsPage() {
     >
       <header className="sticky top-0 z-50 border-b border-gray-100 bg-white/95 backdrop-blur-xl">
         <div className="mx-auto flex max-w-7xl items-center justify-between gap-3 px-4 py-3 sm:px-6 sm:py-4">
-          <a
+          <Link
             href="/manga"
             className="inline-flex min-h-11 items-center rounded-full border border-gray-200 bg-white px-4 text-sm font-bold shadow-sm transition hover:bg-gray-50 active:scale-95 sm:px-5"
           >
@@ -179,7 +180,7 @@ export default function MangaDetailsPage() {
             <span className="mr-1 hidden sm:inline">
               المكتبة
             </span>
-          </a>
+          </Link>
 
           <div className="min-w-0 text-center">
             <p className="truncate text-base font-black tracking-[0.15em] sm:text-lg sm:tracking-[0.2em]">

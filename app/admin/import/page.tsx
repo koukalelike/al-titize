@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   getMangaInfo,
   getMangaChapters,
   getMangaPreferredLanguage,
+  getMangaId,
+  searchMangaDexManga,
+  type MangaDexSearchResult,
 } from "@/lib/mangadex";
 import { importChaptersBatchAction } from "./actions";
 
@@ -19,8 +22,18 @@ type Chapter = {
 
 type ImportMode = "all" | "number";
 
+type ChapterImportOutcome = {
+  success: boolean;
+  skipped: boolean;
+  pages: number;
+  source?: "mangadex" | "consumet";
+  error?: string;
+};
+
 export default function MangaDexImportPage() {
   const [input, setInput] = useState("");
+  const [searchResults, setSearchResults] = useState<MangaDexSearchResult[]>([]);
+  const stopRequested = useRef(false);
 
   const [loading, setLoading] = useState(false);
   const [loadingChapters, setLoadingChapters] =
@@ -32,15 +45,18 @@ export default function MangaDexImportPage() {
   const [chapterError, setChapterError] =
     useState("");
 
-  const [manga, setManga] = useState<any>(null);
+  const [manga, setManga] = useState<Awaited<ReturnType<typeof getMangaInfo>> | null>(null);
   const [chapters, setChapters] = useState<Chapter[]>(
     []
   );
+  const [chapterResults, setChapterResults] = useState<
+    Record<string, ChapterImportOutcome>
+  >({});
 
   const [language, setLanguage] = useState("");
 
   const [importMode, setImportMode] =
-    useState<ImportMode>("number");
+    useState<ImportMode>("all");
 
   const [chapterLimit, setChapterLimit] =
     useState("10");
@@ -88,7 +104,9 @@ export default function MangaDexImportPage() {
     setImportSuccess("");
 
     setManga(null);
+    setSearchResults([]);
     setChapters([]);
+    setChapterResults({});
 
     setLanguage("");
 
@@ -108,39 +126,74 @@ export default function MangaDexImportPage() {
     setFailedCount(0);
     setTotalImportedPages(0);
 
-    if (!input.trim()) {
-      setError("ضع رابط MangaDex أولاً");
+    const query = input.trim();
+
+    if (!query) {
+      setError("اكتب اسم المانغا أولًا.");
+      return;
+    }
+
+    const mangaId = getMangaId(query);
+
+    if (mangaId) {
+      await handleSelectManga(mangaId);
       return;
     }
 
     try {
       setLoading(true);
+      const results = await searchMangaDexManga(query);
 
-      const result = await getMangaInfo(input);
-
-      setManga(result);
-
-      const preferred =
-        await getMangaPreferredLanguage(
-          result.id
-        );
-
-      if (!preferred.language) {
-        setError(
-          "تم العثور على المانجا، لكن لم يتم العثور على أي فصول مترجمة."
-        );
-
+      if (results.length === 0) {
+        setError("لم أجد مانغا بهذا الاسم في MangaDex. جرّب اسمًا آخر.");
         return;
       }
 
-      setLanguage(
-        preferred.language
-      );
+      setSearchResults(results);
     } catch (err) {
       setError(
         err instanceof Error
           ? err.message
           : "حدث خطأ أثناء جلب بيانات MangaDex"
+      );
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleSelectManga(mangaDexId: string) {
+    setError("");
+    setChapterError("");
+    setImportSuccess("");
+    setSearchResults([]);
+    setManga(null);
+    setChapters([]);
+    setChapterResults({});
+    setLanguage("");
+    setTotalChapters(0);
+    setShowChapterSettings(false);
+
+    try {
+      setLoading(true);
+      const selectedManga = await getMangaInfo(mangaDexId);
+      const preferred = await getMangaPreferredLanguage(selectedManga.id);
+
+      setManga(selectedManga);
+
+      if (!preferred.language || preferred.total <= 0) {
+        setError("وجدت المانغا، لكن لم أجد لها فصولًا مترجمة في MangaDex.");
+        return;
+      }
+
+      setLanguage(preferred.language);
+      setTotalChapters(preferred.total);
+      setShowChapterSettings(true);
+      setImportMode("all");
+    } catch (err) {
+      setError(
+        err instanceof Error
+          ? err.message
+          : "حدث خطأ أثناء تحميل بيانات المانغا والفصول."
       );
     } finally {
       setLoading(false);
@@ -161,6 +214,10 @@ export default function MangaDexImportPage() {
       seconds > 0;
       seconds--
     ) {
+      if (stopRequested.current) {
+        break;
+      }
+
       setCountdown(seconds);
       await sleep(1000);
     }
@@ -169,75 +226,21 @@ export default function MangaDexImportPage() {
     setWaiting(false);
   }
 
-  async function handleGetChapters() {
-    if (!manga?.id) {
-      setChapterError(
-        "ابحث عن المانجا أولاً"
-      );
-      return;
-    }
-
-    if (!language) {
-      setChapterError(
-        "لم يتم تحديد لغة الفصول تلقائيًا."
-      );
-      return;
-    }
-
-    setChapterError("");
-    setImportSuccess("");
-
-    try {
-      setLoadingChapters(true);
-
-      const result = await getMangaChapters(
-        manga.id,
-        language,
-        1,
-        0
-      );
-
-      const realTotal = Number(
-        result.total || 0
-      );
-
-      if (realTotal <= 0) {
-        setChapterError(
-          "لم يتم العثور على فصول بهذه اللغة."
-        );
-
-        setShowChapterSettings(false);
-        return;
-      }
-
-      setTotalChapters(realTotal);
-      setShowChapterSettings(true);
-    } catch (err) {
-      setChapterError(
-        err instanceof Error
-          ? err.message
-          : "حدث خطأ أثناء معرفة عدد الفصول"
-      );
-    } finally {
-      setLoadingChapters(false);
-    }
-  }
-
   async function importBatch(
     batchChapters: Chapter[]
-  ) {
+  ): Promise<boolean> {
     if (!manga?.id) {
       setChapterError(
         "بيانات المانجا غير موجودة."
       );
-      return;
+      return false;
     }
 
     if (!batchChapters.length) {
       setChapterError(
         "لا توجد فصول في هذه الدفعة."
       );
-      return;
+      return false;
     }
 
     setChapterError("");
@@ -250,6 +253,20 @@ export default function MangaDexImportPage() {
           manga.id,
           batchChapters
         );
+
+      setChapterResults((previous) => {
+        const next = { ...previous };
+        for (const chapterResult of result.results) {
+          next[chapterResult.chapterId] = {
+            success: chapterResult.success,
+            skipped: chapterResult.skipped,
+            pages: chapterResult.pages,
+            source: chapterResult.source,
+            error: chapterResult.error,
+          };
+        }
+        return next;
+      });
 
       setImportedCount(
         (previous) =>
@@ -285,12 +302,16 @@ export default function MangaDexImportPage() {
           `تمت معالجة الدفعة: ${result.imported} فصل مستورد، ${result.skipped} فصل موجود مسبقًا، ${result.failed} فصل فشل. إجمالي الصفحات الجديدة: ${result.totalPages}`
         );
       }
+
+      return !result.error;
     } catch (err) {
       setChapterError(
         err instanceof Error
           ? err.message
           : "حدث خطأ أثناء استيراد الدفعة."
       );
+
+      return false;
     } finally {
       setImportingBatch(false);
     }
@@ -314,8 +335,10 @@ export default function MangaDexImportPage() {
     setChapterError("");
     setImportSuccess("");
     setWaitingForNextBatch(false);
+    stopRequested.current = false;
 
     setChapters([]);
+    setChapterResults({});
 
     setLoadedChapters(0);
     setCurrentBatch(0);
@@ -365,6 +388,13 @@ export default function MangaDexImportPage() {
           0
         );
 
+      setLoadingChapters(false);
+
+      if (stopRequested.current) {
+        setImportSuccess("⏸️ تم إيقاف الاستيراد قبل بدء رفع الصفحات.");
+        return;
+      }
+
       if (
         !result.chapters ||
         result.chapters.length === 0
@@ -390,9 +420,20 @@ export default function MangaDexImportPage() {
 
       setLoadingChapters(false);
 
-      await importBatch(
+      const batchSucceeded = await importBatch(
         result.chapters
       );
+
+      if (!batchSucceeded) {
+        return;
+      }
+
+      if (stopRequested.current) {
+        setImportSuccess(
+          `⏸️ أوقفت الاستيراد بعد معالجة ${loaded} من ${finalTarget} فصل.`
+        );
+        return;
+      }
 
       if (
         loaded >= finalTarget
@@ -407,6 +448,11 @@ export default function MangaDexImportPage() {
       setWaitingForNextBatch(
         true
       );
+
+      await continueNextBatch(
+        loaded,
+        finalTarget
+      );
     } catch (err) {
       setChapterError(
         err instanceof Error
@@ -418,37 +464,40 @@ export default function MangaDexImportPage() {
     }
   }
 
-  async function continueNextBatch() {
+  async function continueNextBatch(
+    currentOffset: number,
+    finalTarget: number
+  ) {
     if (!manga?.id) {
       return;
     }
 
-    if (
-      loadedChapters >=
-      targetChapters
-    ) {
-      setWaitingForNextBatch(
-        false
-      );
+    if (currentOffset >= finalTarget || stopRequested.current) {
       return;
     }
 
     setChapterError("");
     setImportSuccess("");
-    setWaitingForNextBatch(
-      false
-    );
+    setWaitingForNextBatch(true);
 
     try {
       await waitTenSeconds();
+
+      if (stopRequested.current) {
+        setImportSuccess(
+          `⏸️ أوقفت الاستيراد بعد معالجة ${currentOffset} من ${finalTarget} فصل.`
+        );
+        return;
+      }
+
+      setWaitingForNextBatch(false);
 
       setLoadingChapters(
         true
       );
 
       const remaining =
-        targetChapters -
-        loadedChapters;
+        finalTarget - currentOffset;
 
       const batchSize = Math.min(
         100,
@@ -460,8 +509,17 @@ export default function MangaDexImportPage() {
           manga.id,
           language,
           batchSize,
-          loadedChapters
+          currentOffset
         );
+
+      setLoadingChapters(false);
+
+      if (stopRequested.current) {
+        setImportSuccess(
+          `⏸️ أوقفت الاستيراد بعد معالجة ${currentOffset} من ${finalTarget} فصل.`
+        );
+        return;
+      }
 
       if (
         !result.chapters ||
@@ -480,9 +538,7 @@ export default function MangaDexImportPage() {
         ]
       );
 
-      const newLoaded =
-        loadedChapters +
-        result.chapters.length;
+      const newLoaded = currentOffset + result.chapters.length;
 
       setLoadedChapters(
         newLoaded
@@ -498,13 +554,23 @@ export default function MangaDexImportPage() {
         false
       );
 
-      await importBatch(
+      const batchSucceeded = await importBatch(
         result.chapters
       );
 
+      if (!batchSucceeded) {
+        return;
+      }
+
+      if (stopRequested.current) {
+        setImportSuccess(
+          `⏸️ أوقفت الاستيراد بعد معالجة ${newLoaded} من ${finalTarget} فصل.`
+        );
+        return;
+      }
+
       if (
-        newLoaded >=
-        targetChapters
+        newLoaded >= finalTarget
       ) {
         setImportSuccess(
           "🎉 اكتمل جلب واستيراد جميع الفصول المطلوبة."
@@ -515,6 +581,11 @@ export default function MangaDexImportPage() {
 
       setWaitingForNextBatch(
         true
+      );
+
+      await continueNextBatch(
+        newLoaded,
+        finalTarget
       );
     } catch (err) {
       setChapterError(
@@ -529,16 +600,14 @@ export default function MangaDexImportPage() {
 
       setWaiting(false);
       setCountdown(0);
+      setWaitingForNextBatch(false);
     }
   }
 
   function stopImport() {
-    setWaitingForNextBatch(
-      false
-    );
-
+    stopRequested.current = true;
     setImportSuccess(
-      `⏸️ تم إيقاف الاستيراد بعد معالجة ${loadedChapters} من ${targetChapters} فصل.`
+      "سيتم إيقاف الاستيراد بعد انتهاء الدفعة الحالية."
     );
   }
 
@@ -616,30 +685,51 @@ export default function MangaDexImportPage() {
         <div className="mt-8 rounded-2xl border border-gray-200 bg-gray-50 p-5">
 
           <label className="mb-2 block text-sm font-bold text-gray-700">
-            رابط MangaDex
+            اسم المانغا
           </label>
 
           <input
             type="text"
             value={input}
+            disabled={
+              loading ||
+              loadingChapters ||
+              importingBatch ||
+              waitingForNextBatch
+            }
             onChange={(e) =>
               setInput(
                 e.target.value
               )
             }
-            placeholder="https://mangadex.org/title/..."
-            dir="ltr"
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                void handleSearch();
+              }
+            }}
+            placeholder="مثال: Naruto أو ناروتو"
+            dir="auto"
             className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm outline-none focus:border-black"
           />
 
+          <p className="mt-2 text-xs leading-6 text-gray-500">
+            اكتب الاسم واضغط بحث. يمكنك أيضًا لصق رابط MangaDex أو المعرّف إذا كان لديك.
+          </p>
+
           <button
             onClick={handleSearch}
-            disabled={loading}
+            disabled={
+              loading ||
+              loadingChapters ||
+              importingBatch ||
+              waitingForNextBatch
+            }
             className="mt-4 w-full rounded-xl bg-black px-4 py-3 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {loading
-              ? "جاري البحث وتحديد اللغة..."
-              : "بحث عن المانجا"}
+              ? "جاري البحث..."
+              : "بحث عن المانغا"}
           </button>
 
           {error && (
@@ -649,6 +739,64 @@ export default function MangaDexImportPage() {
           )}
 
         </div>
+
+        {searchResults.length > 0 && (
+          <section className="mt-8" aria-labelledby="mangadex-results-title">
+            <h2
+              id="mangadex-results-title"
+              className="mb-4 text-xl font-bold text-black"
+            >
+              اختر المانغا الصحيحة
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              {searchResults.map((result) => (
+                <button
+                  key={result.id}
+                  type="button"
+                  onClick={() => void handleSelectManga(result.id)}
+                  disabled={
+                    loading ||
+                    loadingChapters ||
+                    importingBatch ||
+                    waitingForNextBatch
+                  }
+                  className="flex gap-4 rounded-2xl border border-gray-200 bg-white p-4 text-right transition hover:border-black hover:shadow-md disabled:cursor-wait disabled:opacity-60"
+                >
+                  {result.coverUrl ? (
+                    <img
+                      src={result.coverUrl}
+                      alt=""
+                      loading="lazy"
+                      className="h-28 w-20 shrink-0 rounded-lg object-cover"
+                    />
+                  ) : (
+                    <div className="flex h-28 w-20 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-500">
+                      بلا غلاف
+                    </div>
+                  )}
+                  <span className="min-w-0 flex-1">
+                    <span className="block font-bold text-black">
+                      {result.title}
+                    </span>
+                    {result.alternativeTitles.length > 0 && (
+                      <span className="mt-2 line-clamp-2 block text-xs leading-5 text-gray-500">
+                        {result.alternativeTitles.slice(0, 3).join(" · ")}
+                      </span>
+                    )}
+                    {result.status && (
+                      <span className="mt-2 block text-xs text-gray-500">
+                        الحالة: {result.status}
+                      </span>
+                    )}
+                    <span className="mt-3 block text-sm font-bold text-orange-700">
+                      {loading ? "جاري تحميل البيانات..." : "اختيار هذه المانغا ←"}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
 
         {manga && (
           <>
@@ -709,26 +857,6 @@ export default function MangaDexImportPage() {
                     )}
 
                 </div>
-
-              </div>
-
-              <div className="border-t border-gray-200 bg-gray-50 p-5">
-
-                <button
-                  onClick={
-                    handleGetChapters
-                  }
-                  disabled={
-                    loadingChapters ||
-                    importingBatch ||
-                    !language
-                  }
-                  className="w-full rounded-xl bg-black px-4 py-3 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {loadingChapters
-                    ? "جاري البحث عن الفصول..."
-                    : "جلب الفصول"}
-                </button>
 
               </div>
 
@@ -802,7 +930,8 @@ export default function MangaDexImportPage() {
                     value={importMode}
                     disabled={
                       loadingChapters ||
-                      importingBatch
+                      importingBatch ||
+                      waitingForNextBatch
                     }
                     onChange={(e) =>
                       setImportMode(
@@ -840,7 +969,8 @@ export default function MangaDexImportPage() {
                       }
                       disabled={
                         loadingChapters ||
-                        importingBatch
+                        importingBatch ||
+                        waitingForNextBatch
                       }
                       onChange={(e) =>
                         setChapterLimit(
@@ -865,6 +995,7 @@ export default function MangaDexImportPage() {
                   disabled={
                     loadingChapters ||
                     importingBatch ||
+                    waitingForNextBatch ||
                     !language ||
                     (importMode ===
                       "number" &&
@@ -882,7 +1013,9 @@ export default function MangaDexImportPage() {
                     ? "جاري جلب الفصول..."
                     : importingBatch
                     ? "📥 جاري استيراد الفصول تلقائيًا..."
-                    : "جلب واستيراد هذه الفصول"}
+                    : importMode === "all"
+                    ? "إضافة كل الفصول والصفحات تلقائيًا"
+                    : "إضافة الفصول والصفحات المختارة"}
                 </button>
 
               </div>
@@ -905,7 +1038,7 @@ export default function MangaDexImportPage() {
                       ) : importingBatch ? (
                         "📥 جاري استيراد الفصول والصفحات..."
                       ) : waitingForNextBatch ? (
-                        "⏸️ في انتظار قرارك"
+                        "⏳ انتظار تلقائي قبل الدفعة التالية"
                       ) : loadingChapters ? (
                         "📥 جاري جلب الفصول"
                       ) : loadedChapters >=
@@ -1020,56 +1153,31 @@ export default function MangaDexImportPage() {
                     targetChapters && (
                     <div className="mt-5 rounded-xl border border-blue-300 bg-white p-5 text-center">
 
-                      <p className="text-lg font-black text-gray-900">
-                        تم جلب واستيراد{" "}
-                        {loadedChapters}{" "}
-                        من{" "}
-                        {targetChapters}
+                      <p className="text-sm font-bold text-gray-900">
+                        سيكمل النظام الاستيراد تلقائيًا بعد الانتظار القصير.
                       </p>
 
-                      <p className="mt-2 text-sm text-gray-600">
-                        هل تريد جلب واستيراد الدفعة التالية؟
-                      </p>
-
-                      <p className="mt-2 text-xs text-gray-500">
-                        عند المتابعة سيتم الانتظار 10 ثوانٍ قبل الطلب التالي.
-                      </p>
-
-                      <div className="mt-4 flex flex-col gap-3 sm:flex-row">
-
-                        <button
-                          type="button"
-                          onClick={
-                            continueNextBatch
-                          }
-                          disabled={
-                            waiting ||
-                            loadingChapters ||
-                            importingBatch
-                          }
-                          className="w-full rounded-xl bg-black px-4 py-3 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          نعم، تابع
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={
-                            stopImport
-                          }
-                          disabled={
-                            waiting ||
-                            loadingChapters ||
-                            importingBatch
-                          }
-                          className="w-full rounded-xl border border-gray-300 bg-white px-4 py-3 font-bold text-gray-700 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          لا، توقف
-                        </button>
-
-                      </div>
+                      <button
+                        type="button"
+                        onClick={stopImport}
+                        className="mt-4 rounded-xl border border-gray-300 bg-white px-5 py-2.5 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
+                      >
+                        أوقف بعد الدفعة الحالية
+                      </button>
 
                     </div>
+                  )}
+
+                {!waitingForNextBatch &&
+                  (loadingChapters || importingBatch) &&
+                  loadedChapters < targetChapters && (
+                    <button
+                      type="button"
+                      onClick={stopImport}
+                      className="mt-5 w-full rounded-xl border border-gray-300 bg-white px-4 py-3 text-sm font-bold text-gray-700 transition hover:bg-gray-100"
+                    >
+                      أوقف بعد الدفعة الحالية
+                    </button>
                   )}
 
               </div>
@@ -1130,17 +1238,34 @@ export default function MangaDexImportPage() {
                             <div className="text-xs text-gray-500">
                               {chapter.language.toUpperCase()}
                               {" · "}
-                              {
-                                chapter.pages
-                              }{" "}
-                              صفحة
+                              صفحات MangaDex: {chapter.pages}
                             </div>
 
                           </div>
 
-                          <div className="rounded-lg bg-green-50 px-4 py-3 text-center text-sm font-bold text-green-700">
-                            📥 تتم معالجة هذا الفصل تلقائيًا ضمن الدفعة
-                          </div>
+                          {(() => {
+                            const outcome = chapterResults[chapter.id];
+                            const message = !outcome
+                              ? "سيتم جلب صفحات هذا الفصل تلقائيًا ضمن الدفعة."
+                              : !outcome.success
+                                ? `فشل استيراد الفصل: ${outcome.error || "لم يتم العثور على صفحات."}`
+                                : outcome.skipped
+                                  ? "الفصل موجود مسبقًا؛ لم تُرفع صفحات جديدة."
+                                  : `تم رفع ${outcome.pages} صفحة عبر ${outcome.source === "consumet" ? "Consumet" : "MangaDex"}.`;
+                            const style = !outcome
+                              ? "bg-gray-100 text-gray-700"
+                              : !outcome.success
+                                ? "bg-red-50 text-red-700"
+                                : outcome.skipped
+                                  ? "bg-amber-50 text-amber-800"
+                                  : "bg-green-50 text-green-700";
+
+                            return (
+                              <div className={`rounded-lg px-4 py-3 text-center text-sm font-bold ${style}`}>
+                                {message}
+                              </div>
+                            );
+                          })()}
 
                         </div>
 

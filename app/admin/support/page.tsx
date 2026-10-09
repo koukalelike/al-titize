@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type SupportMessage = {
@@ -20,11 +20,20 @@ export default function AdminSupportPage() {
   const [saving, setSaving] = useState<number | null>(null);
   const [statusMessage, setStatusMessage] = useState("");
 
-  useEffect(() => {
-    checkAdmin();
+  const loadMessages = useCallback(async () => {
+    const supabase = createClient();
+
+    const { data, error } = await supabase
+      .from("support_messages")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    if (!error) {
+      setMessages(data ?? []);
+    }
   }, []);
 
-  async function checkAdmin() {
+  const checkAdmin = useCallback(async () => {
     const supabase = createClient();
 
     const {
@@ -50,20 +59,11 @@ export default function AdminSupportPage() {
     setAuthorized(true);
     await loadMessages();
     setLoading(false);
-  }
+  }, [loadMessages]);
 
-  async function loadMessages() {
-    const supabase = createClient();
-
-    const { data, error } = await supabase
-      .from("support_messages")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    if (!error) {
-      setMessages(data ?? []);
-    }
-  }
+  useEffect(() => {
+    void Promise.resolve().then(checkAdmin);
+  }, [checkAdmin]);
 
   async function sendReply(id: number) {
     const reply = replies[id]?.trim();

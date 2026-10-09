@@ -17,6 +17,10 @@ export default function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [loading, setLoading] = useState(false);
+  const hidden =
+    pathname.startsWith("/admin") ||
+    pathname === "/login" ||
+    pathname === "/signup";
 
   async function loadNotifications() {
     setLoading(true);
@@ -33,12 +37,12 @@ export default function NotificationBell() {
   }
 
   useEffect(() => {
-    if (pathname.startsWith("/admin")) {
+    if (hidden) {
       return;
     }
 
-    loadNotifications();
-  }, [pathname]);
+    void Promise.resolve().then(loadNotifications);
+  }, [hidden, pathname]);
 
   function toggleNotifications() {
     setOpen((value) => !value);
@@ -48,7 +52,7 @@ export default function NotificationBell() {
     }
   }
 
-  if (pathname.startsWith("/admin")) {
+  if (hidden) {
     return null;
   }
 

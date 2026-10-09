@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 
 type Manga = {
@@ -175,12 +176,12 @@ export default function MangaPage() {
           </div>
 
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            <a
+            <Link
               href="/"
               className="hidden min-h-11 items-center justify-center rounded-full border border-gray-200 bg-white px-5 text-sm font-bold shadow-sm transition hover:bg-gray-50 active:scale-95 sm:inline-flex"
             >
               الرئيسية
-            </a>
+            </Link>
 
             {userId && (
               <a

@@ -22,7 +22,10 @@ export default function CustomerSupport() {
   const [sending, setSending] = useState(false);
   const [status, setStatus] = useState("");
 
-  const isAdmin = pathname.startsWith("/admin");
+  const isAdmin =
+    pathname.startsWith("/admin") ||
+    pathname === "/login" ||
+    pathname === "/signup";
 
   async function loadMessages() {
     setLoading(true);
@@ -73,7 +76,7 @@ export default function CustomerSupport() {
       return;
     }
 
-    loadMessages();
+    void Promise.resolve().then(loadMessages);
   }, [open, isAdmin]);
 
   async function sendMessage() {

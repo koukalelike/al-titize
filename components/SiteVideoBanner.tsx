@@ -10,6 +10,14 @@ export default function SiteVideoBanner() {
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
 
   useEffect(() => {
+    if (
+      pathname.startsWith("/admin") ||
+      pathname === "/login" ||
+      pathname === "/signup"
+    ) {
+      return;
+    }
+
     async function loadVideo() {
       const supabase = createClient();
 
@@ -24,10 +32,14 @@ export default function SiteVideoBanner() {
     }
 
     loadVideo();
-  }, []);
+  }, [pathname]);
 
   // لا يظهر الفيديو في صفحات الإدارة
-  if (pathname.startsWith("/admin")) {
+  if (
+    pathname.startsWith("/admin") ||
+    pathname === "/login" ||
+    pathname === "/signup"
+  ) {
     return null;
   }
 

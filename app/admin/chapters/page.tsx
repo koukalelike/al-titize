@@ -13,7 +13,32 @@ type Chapter = {
   manga_id: number;
   chapter_number: number;
   title: string | null;
+  mangadex_chapter_id: string | null;
+  scanlation_groups: {
+    id: string;
+    name: string;
+  }[] | null;
 };
+
+function getMangaPageStoragePath(imageUrl: string): string | null {
+  const publicBucketPath =
+    "/storage/v1/object/public/manga-pages/";
+
+  try {
+    const pathname = new URL(imageUrl).pathname;
+    const bucketPathIndex = pathname.indexOf(publicBucketPath);
+
+    if (bucketPathIndex === -1) {
+      return null;
+    }
+
+    return decodeURIComponent(
+      pathname.slice(bucketPathIndex + publicBucketPath.length)
+    );
+  } catch {
+    return null;
+  }
+}
 
 export default function ChaptersAdminPage() {
   const [manga, setManga] = useState<Manga[]>([]);
@@ -155,6 +180,32 @@ export default function ChaptersAdminPage() {
 
     const supabase = createClient();
 
+    let storageCleanupWarning = "";
+    const { data: pageRows, error: pagesError } = await supabase
+      .from("pages")
+      .select("image_url")
+      .eq("chapter_id", id);
+
+    if (pagesError) {
+      storageCleanupWarning =
+        " تعذر فحص صور التخزين؛ راجعها يدويًا.";
+    } else {
+      const storagePaths = (pageRows ?? [])
+        .map((page) => getMangaPageStoragePath(page.image_url))
+        .filter((path): path is string => Boolean(path));
+
+      if (storagePaths.length > 0) {
+        const { error: storageError } = await supabase.storage
+          .from("manga-pages")
+          .remove(storagePaths);
+
+        if (storageError) {
+          storageCleanupWarning =
+            " تعذر حذف بعض الصور من Storage؛ راجع صلاحيات التخزين.";
+        }
+      }
+    }
+
     const { error } = await supabase
       .from("chapters")
       .delete()
@@ -166,7 +217,7 @@ export default function ChaptersAdminPage() {
       return;
     }
 
-    setMessage("تم حذف الفصل.");
+    setMessage(`تم حذف الفصل من الموقع.${storageCleanupWarning}`);
 
     await loadData();
   }
@@ -332,9 +383,28 @@ export default function ChaptersAdminPage() {
                         {chapter.title}
                       </p>
                     )}
+
+                    {chapter.scanlation_groups?.length ? (
+                      <p className="mt-2 text-xs text-gray-500">
+                        فرق الترجمة: {chapter.scanlation_groups
+                          .map((group) => group.name)
+                          .join("، ")}
+                      </p>
+                    ) : null}
                   </div>
 
                   <div className="flex flex-wrap items-center gap-3">
+                    {chapter.mangadex_chapter_id ? (
+                      <a
+                        href={`https://mangadex.org/chapter/${chapter.mangadex_chapter_id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 transition hover:border-black hover:bg-gray-50 hover:text-black active:scale-95"
+                      >
+                        مصدر MangaDex
+                      </a>
+                    ) : null}
+
                     <a
                       href={`/manga/${chapter.manga_id}/chapter/${chapter.id}`}
                       target="_blank"

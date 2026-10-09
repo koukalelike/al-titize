@@ -1,6 +1,40 @@
+import { MANGADEX_USER_AGENT } from "@/lib/data-sources/mangadex-headers";
+
 const MANGADEX_API = "https://api.mangadex.org";
 const MANGADEX_PROXY = "/api/mangadex";
 const MANGADEX_UPLOADS = "https://uploads.mangadex.org";
+
+type MangaDexChapterRecord = {
+  id: string;
+  attributes?: {
+    chapter?: string | null;
+    title?: string | null;
+    translatedLanguage?: string | null;
+    pages?: number | null;
+    volume?: string | null;
+  };
+  relationships?: {
+    id: string;
+    type: string;
+    attributes?: {
+      name?: string | null;
+    };
+  }[];
+};
+
+type MangaDexChapterPage = {
+  page_number: number;
+  filename: string;
+  image_url: string;
+};
+
+export type MangaDexSearchResult = {
+  id: string;
+  title: string;
+  alternativeTitles: string[];
+  coverUrl: string | null;
+  status: string | null;
+};
 
 async function mangaDexFetch(path: string) {
   const isBrowser =
@@ -12,6 +46,11 @@ async function mangaDexFetch(path: string) {
 
   const response = await fetch(url, {
     cache: "no-store",
+    ...(!isBrowser && {
+      headers: {
+        "User-Agent": MANGADEX_USER_AGENT,
+      },
+    }),
   });
 
   if (!response.ok) {
@@ -57,6 +96,60 @@ export function getMangaId(
   return match ? match[1] : null;
 }
 
+export async function searchMangaDexManga(
+  query: string,
+  limit = 12
+): Promise<MangaDexSearchResult[]> {
+  const searchTerm = query.trim();
+
+  if (!searchTerm) {
+    throw new Error("اكتب اسم المانغا للبحث عنها.");
+  }
+
+  const params = new URLSearchParams();
+  params.set("title", searchTerm);
+  params.set("limit", String(Math.min(Math.max(limit, 1), 20)));
+  params.append("includes[]", "cover_art");
+
+  const result = await mangaDexFetch(`/manga?${params.toString()}`);
+  const mangaRecords = Array.isArray(result.data) ? result.data : [];
+
+  return mangaRecords.map((record: {
+    id: string;
+    attributes?: {
+      title?: Record<string, string>;
+      altTitles?: Record<string, string>[];
+      status?: string | null;
+    };
+    relationships?: {
+      type?: string;
+      attributes?: { fileName?: string | null };
+    }[];
+  }) => {
+    const titles = record.attributes?.title ?? {};
+    const primaryTitle =
+      titles.en ||
+      titles["ja-ro"] ||
+      Object.values(titles)[0] ||
+      "بدون عنوان";
+    const coverFilename = record.relationships?.find(
+      (relationship) => relationship.type === "cover_art"
+    )?.attributes?.fileName;
+
+    return {
+      id: record.id,
+      title: primaryTitle,
+      alternativeTitles: (record.attributes?.altTitles ?? []).flatMap(
+        (title) => Object.values(title)
+      ),
+      coverUrl: coverFilename
+        ? `${MANGADEX_UPLOADS}/covers/${record.id}/${coverFilename}.512.jpg`
+        : null,
+      status: record.attributes?.status ?? null,
+    };
+  });
+}
+
 /*
  * جلب معلومات المانجا
  */
@@ -84,7 +177,10 @@ export async function getMangaInfo(
    */
   const coverRelationship =
     mangaData?.relationships?.find(
-      (relationship: any) =>
+      (relationship: {
+        type?: string;
+        attributes?: { fileName?: string };
+      }) =>
         relationship?.type ===
         "cover_art"
     );
@@ -111,17 +207,7 @@ export async function getMangaInfo(
       ? `${originalCoverUrl}.512.jpg`
       : null;
 
-  console.log(
-    "🖼️ MangaDex cover filename:",
-    fileName
-  );
-
-  console.log(
-    "🖼️ MangaDex cover URL:",
-    coverUrl
-  );
-
-  return {
+return {
     id: mangaId,
     data: mangaData,
     coverUrl,
@@ -184,7 +270,7 @@ export async function getMangaChapters(
 
     chapters:
       (result.data || []).map(
-        (chapter: any) => ({
+        (chapter: MangaDexChapterRecord) => ({
           id: chapter.id,
 
           chapter:
@@ -266,7 +352,7 @@ export async function getMangaChaptersAllLanguages(
 
     chapters:
       (result.data || []).map(
-        (chapter: any) => ({
+        (chapter: MangaDexChapterRecord) => ({
           id: chapter.id,
 
           chapter:
@@ -320,6 +406,21 @@ export async function getMangaPreferredLanguage(
     return {
       language: "ar",
       total: arabic.total,
+    };
+  }
+
+  const english =
+    await getMangaChapters(
+      mangaId,
+      "en",
+      1,
+      0
+    );
+
+  if (english.total > 0) {
+    return {
+      language: "en",
+      total: english.total,
     };
   }
 
@@ -405,16 +506,31 @@ export async function getChapterInfo(
 ) {
   const result =
     await mangaDexFetch(
-      `/chapter/${chapterId}`
+      `/chapter/${chapterId}?includes%5B%5D=scanlation_group`
     );
 
+  const chapterData =
+    result.data as MangaDexChapterRecord | undefined;
+
   const attributes =
-    result.data?.attributes ||
+    chapterData?.attributes ||
     {};
+
+  const scanlationGroups =
+    (chapterData?.relationships || [])
+      .filter(
+        (relationship) =>
+          relationship.type === "scanlation_group" &&
+          Boolean(relationship.attributes?.name)
+      )
+      .map((relationship) => ({
+        id: relationship.id,
+        name: relationship.attributes!.name!,
+      }));
 
   return {
     id:
-      result.data?.id ||
+      chapterData?.id ||
       chapterId,
 
     chapter:
@@ -429,15 +545,17 @@ export async function getChapterInfo(
       attributes
         .translatedLanguage ??
       "",
+
+    scanlationGroups,
   };
 }
 
 /*
  * جلب روابط صفحات الفصل
  */
-export async function getChapterPages(
+export async function getMangaDexChapterPages(
   chapterId: string
-) {
+): Promise<MangaDexChapterPage[]> {
   const result =
     await mangaDexFetch(
       `/at-home/server/${chapterId}`
@@ -449,21 +567,48 @@ export async function getChapterPages(
   const hash =
     result.chapter?.hash;
 
-  const filenames =
+  const fullQualityFilenames =
     result.chapter?.data;
 
-  if (
-    !baseUrl ||
-    !hash ||
-    !Array.isArray(
-      filenames
-    ) ||
-    filenames.length === 0
-  ) {
+  const dataSaverFilenames =
+    result.chapter?.dataSaver;
+
+  const hasFullQualityPages =
+    Array.isArray(
+      fullQualityFilenames
+    ) &&
+    fullQualityFilenames.length > 0;
+
+  const hasDataSaverPages =
+    Array.isArray(
+      dataSaverFilenames
+    ) &&
+    dataSaverFilenames.length > 0;
+
+  if (!baseUrl || !hash) {
     throw new Error(
-      "لم يتم العثور على صور لهذا الفصل."
+      `لم يرسل MangaDex رابط صفحات صالحًا للفصل ${chapterId}.`
     );
   }
+
+  if (
+    !hasFullQualityPages &&
+    !hasDataSaverPages
+  ) {
+    throw new Error(
+      `MangaDex لم يرسل أسماء صور للفصل ${chapterId}؛ لا توجد صفحات متاحة لهذا الفصل حاليًا.`
+    );
+  }
+
+  const filenames =
+    hasFullQualityPages
+      ? fullQualityFilenames
+      : dataSaverFilenames;
+
+  const imagePath =
+    hasFullQualityPages
+      ? "data"
+      : "data-saver";
 
   return filenames.map(
     (
@@ -476,7 +621,7 @@ export async function getChapterPages(
       filename,
 
       image_url:
-        `${baseUrl}/data/${hash}/${filename}`,
+        `${baseUrl}/${imagePath}/${hash}/${filename}`,
     })
   );
 }

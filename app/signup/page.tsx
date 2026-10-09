@@ -1,155 +1,100 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
 export default function SignupPage() {
   const router = useRouter();
-
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function handleSignup(e: React.FormEvent) {
-    e.preventDefault();
-
+  async function handleSignup(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
     setMessage("");
 
     if (password.length < 6) {
       setMessage("كلمة المرور يجب أن تحتوي على 6 أحرف على الأقل.");
       return;
     }
-
     if (password !== confirmPassword) {
       setMessage("كلمتا المرور غير متطابقتين.");
       return;
     }
 
     setLoading(true);
-
     const supabase = createClient();
-
-    const { data, error } = await supabase.auth.signUp({
+    const { error } = await supabase.auth.signUp({
       email: email.trim(),
       password,
     });
 
     if (error) {
-      console.error("SIGNUP ERROR:", error);
-
-      setMessage(`خطأ: ${error.message}`);
+      setMessage(`تعذر إنشاء الحساب: ${error.message}`);
       setLoading(false);
       return;
     }
 
-    console.log("SIGNUP SUCCESS:", data);
-
-    setMessage(
-      "تم إنشاء الحساب بنجاح. تحقق من بريدك الإلكتروني إذا طُلب منك ذلك."
-    );
-
+    setMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني إذا طُلب منك ذلك.");
     setLoading(false);
-
-    setTimeout(() => {
-      router.push("/");
-    }, 2000);
+    window.setTimeout(() => router.replace("/login"), 1800);
   }
 
   return (
-    <main
-      dir="rtl"
-      className="flex min-h-screen items-center justify-center bg-gray-50 px-6 text-gray-900"
-    >
-      <div className="w-full max-w-md">
-        <div className="mb-8 text-center">
-          <h1 className="text-3xl font-black tracking-widest">
-            AL TITIZE
-          </h1>
+    <main dir="rtl" className="auth-page">
+      <div aria-hidden="true" className="auth-glow" />
+      <Link href="/" className="auth-brand">
+        <span className="brand-mark">A</span>
+        <span><strong>AL TITIZE</strong><small>عالمك بين الصفحات</small></span>
+      </Link>
 
-          <p className="mt-3 text-gray-500">
-            إنشاء حساب جديد
-          </p>
-        </div>
+      <div className="auth-layout">
+        <section className="auth-art" aria-label="انضم إلى AL TITIZE">
+          <div className="auth-art-copy">
+            <span className="eyebrow">خطوتك الأولى</span>
+            <h1>مكتبتك<br /><span>تبدأ الآن.</span></h1>
+            <p>أنشئ حسابًا واحفظ أعمالك المفضلة، ثم تابع القراءة من أي وقت.</p>
+          </div>
+          <div className="auth-art-stamp">AL<br /><span>TITIZE</span></div>
+          <div className="auth-art-lines" />
+        </section>
 
-        <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl shadow-gray-200/50">
-          <form onSubmit={handleSignup} className="space-y-5">
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                البريد الإلكتروني
-              </label>
+        <section className="auth-card">
+          <div className="auth-card-heading">
+            <span className="auth-card-icon">✦</span>
+            <p className="eyebrow">انضم إلى مجتمع القراء</p>
+            <h2>إنشاء حساب</h2>
+            <p>أكمل البيانات التالية للبدء.</p>
+          </div>
 
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                placeholder="example@email.com"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 outline-none transition focus:border-black focus:bg-white focus:ring-2 focus:ring-black/5"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                كلمة المرور
-              </label>
-
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 outline-none transition focus:border-black focus:bg-white focus:ring-2 focus:ring-black/5"
-              />
-            </div>
-
-            <div>
-              <label className="mb-2 block text-sm font-semibold text-gray-700">
-                تأكيد كلمة المرور
-              </label>
-
-              <input
-                type="password"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                placeholder="••••••••"
-                className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3.5 outline-none transition focus:border-black focus:bg-white focus:ring-2 focus:ring-black/5"
-              />
-            </div>
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full rounded-xl bg-black px-5 py-3.5 font-bold text-white transition hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {loading ? "جاري إنشاء الحساب..." : "إنشاء الحساب"}
+          <form onSubmit={handleSignup} className="auth-form">
+            <label>
+              <span>البريد الإلكتروني</span>
+              <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoComplete="email" placeholder="name@example.com" required />
+            </label>
+            <label>
+              <span>كلمة المرور</span>
+              <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoComplete="new-password" placeholder="6 أحرف على الأقل" required />
+            </label>
+            <label>
+              <span>تأكيد كلمة المرور</span>
+              <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" placeholder="أعد كتابة كلمة المرور" required />
+            </label>
+            {message && <p className="auth-message" role="status">{message}</p>}
+            <button className="button-primary auth-submit" type="submit" disabled={loading}>
+              {loading ? "جارٍ إنشاء الحساب…" : "إنشاء حسابي"}<span aria-hidden="true">←</span>
             </button>
           </form>
 
-          {message && (
-            <div className="mt-5 rounded-xl border border-gray-200 bg-gray-50 p-4 text-center text-sm text-gray-600">
-              {message}
-            </div>
-          )}
-
-          <div className="mt-6 border-t border-gray-100 pt-6 text-center">
-            <p className="text-sm text-gray-500">
-              لديك حساب بالفعل؟
-            </p>
-
-            <a
-              href="/"
-              className="mt-2 inline-block font-semibold text-black hover:underline"
-            >
-              تسجيل الدخول
-            </a>
-          </div>
-        </div>
+          <div className="auth-card-footer"><span>لديك حساب؟</span><Link href="/login">تسجيل الدخول</Link></div>
+          <Link href="/manga" className="auth-back">العودة إلى المكتبة</Link>
+        </section>
       </div>
+      <p className="auth-legal">ابدأ مجانًا، واحتفظ بقوائمك وقراءتك في مكان واحد.</p>
     </main>
   );
 }

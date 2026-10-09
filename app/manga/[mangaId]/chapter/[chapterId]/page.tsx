@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import Link from "next/link";
 import { useParams } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -15,6 +16,11 @@ type Chapter = {
   chapter_number: number;
   title: string | null;
   manga_id: number;
+  mangadex_chapter_id: string | null;
+  scanlation_groups: {
+    id: string;
+    name: string;
+  }[] | null;
 };
 
 type Manga = {
@@ -91,7 +97,9 @@ export default function ChapterReader() {
         const { data: chapterData, error: chapterError } =
           await supabase
             .from("chapters")
-            .select("id, chapter_number, title, manga_id")
+            .select(
+              "id, chapter_number, title, manga_id, mangadex_chapter_id, scanlation_groups"
+            )
             .eq("id", chapterId)
             .single();
 
@@ -496,12 +504,12 @@ export default function ChapterReader() {
             {error}
           </p>
 
-          <a
+          <Link
             href="/manga"
             className="mt-6 inline-block rounded-2xl bg-black px-7 py-3 font-bold text-white transition hover:-translate-y-1"
           >
             العودة إلى المكتبة
-          </a>
+          </Link>
         </div>
       </main>
     );
@@ -556,6 +564,39 @@ export default function ChapterReader() {
                 ? ` — ${chapter.title}`
                 : ""}
             </h1>
+
+            {chapter.mangadex_chapter_id ? (
+              <div className="mt-1 flex flex-wrap items-center justify-center gap-x-2 gap-y-1 text-[10px] text-gray-500 sm:text-xs">
+                <span>المصدر:</span>
+                <a
+                  href={`https://mangadex.org/chapter/${chapter.mangadex_chapter_id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-bold text-orange-700 underline"
+                >
+                  MangaDex
+                </a>
+                {chapter.scanlation_groups?.length ? (
+                  <>
+                    <span aria-hidden="true">·</span>
+                    <span>فريق الترجمة:</span>
+                    {chapter.scanlation_groups.map((group) => (
+                      <a
+                        key={group.id}
+                        href={`https://mangadex.org/group/${group.id}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="font-semibold text-gray-700 underline"
+                      >
+                        {group.name}
+                      </a>
+                    ))}
+                  </>
+                ) : (
+                  <span>فريق الترجمة غير مسجل في بيانات المصدر</span>
+                )}
+              </div>
+            ) : null}
           </div>
 
           <a

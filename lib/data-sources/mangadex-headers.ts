@@ -1,0 +1,1 @@
+export const MANGADEX_USER_AGENT = "AL-TITIZE/0.1.0";

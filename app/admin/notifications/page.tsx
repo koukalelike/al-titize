@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 type Notification = {
@@ -22,11 +22,18 @@ export default function AdminNotificationsPage() {
   const [saving, setSaving] = useState(false);
   const [statusMessage, setStatusMessage] = useState("");
 
-  useEffect(() => {
-    checkAdmin();
+  const loadNotifications = useCallback(async () => {
+    const supabase = createClient();
+
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .order("created_at", { ascending: false });
+
+    setNotifications(data ?? []);
   }, []);
 
-  async function checkAdmin() {
+  const checkAdmin = useCallback(async () => {
     const supabase = createClient();
 
     const {
@@ -54,18 +61,11 @@ export default function AdminNotificationsPage() {
     await loadNotifications();
 
     setLoading(false);
-  }
+  }, [loadNotifications]);
 
-  async function loadNotifications() {
-    const supabase = createClient();
-
-    const { data } = await supabase
-      .from("notifications")
-      .select("*")
-      .order("created_at", { ascending: false });
-
-    setNotifications(data ?? []);
-  }
+  useEffect(() => {
+    void Promise.resolve().then(checkAdmin);
+  }, [checkAdmin]);
 
   async function createNotification(e: React.FormEvent) {
     e.preventDefault();

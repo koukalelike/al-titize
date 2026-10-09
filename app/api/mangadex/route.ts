@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { MANGADEX_USER_AGENT } from "@/lib/data-sources/mangadex-headers";
 
 const MANGADEX_API = "https://api.mangadex.org";
 
@@ -56,6 +57,9 @@ export async function GET(request: NextRequest) {
           mangaDexUrl,
           {
             cache: "no-store",
+            headers: {
+              "User-Agent": MANGADEX_USER_AGENT,
+            },
           }
         );
 
