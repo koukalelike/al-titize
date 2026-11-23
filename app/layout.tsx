@@ -1,41 +1,44 @@
 import type { Metadata } from "next";
-import type { ReactNode } from "react";
+import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
+import NotificationBell from "@/components/NotificationBell";
+import CustomerSupport from "@/components/CustomerSupport";
+import SiteVideoBanner from "@/components/SiteVideoBanner";
+
+const geistSans = Geist({
+  variable: "--font-geist-sans",
+  subsets: ["latin"],
+});
+
+const geistMono = Geist_Mono({
+  variable: "--font-geist-mono",
+  subsets: ["latin"],
+});
 
 export const metadata: Metadata = {
-  title: "AL TITIZE — صيانة مؤقتة",
-  description: "نعمل على تحديث وتطوير AL TITIZE. نعتذر عن الإزعاج.",
+  title: "AL TITIZE — عالمك بين الصفحات",
+  description: "اكتشف المانغا، تابع فصولك، وواصل القراءة على AL TITIZE.",
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{ children: ReactNode }>) {
-  void children;
-
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
   return (
-    <html lang="ar">
-      <body>
-        <main
-          dir="rtl"
-          role="status"
-          aria-live="polite"
-          className="grid min-h-screen place-items-center px-5 py-12 text-center"
-        >
-          <section className="max-w-xl space-y-5">
-            <div aria-hidden="true" className="text-5xl">
-              🛠️
-            </div>
-            <h1 className="text-3xl font-bold sm:text-4xl">
-              نعمل على تحديث النظام
-            </h1>
-            <p className="text-lg text-gray-300">
-              الموقع متوقف مؤقتًا لإجراء تحديثات وتطويرات.
-            </p>
-            <p className="text-gray-400">
-              نعتذر عن الإزعاج، وشكرًا لصبركم.
-            </p>
-          </section>
-        </main>
+    <html
+      lang="ar"
+      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+    >
+      <body className="min-h-full flex flex-col">
+        <SiteVideoBanner />
+
+        <div className="fixed bottom-5 left-5 z-[100] flex items-center gap-2">
+          <NotificationBell />
+          <CustomerSupport />
+        </div>
+
+        {children}
       </body>
     </html>
   );
